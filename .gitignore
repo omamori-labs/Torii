@@ -1,0 +1,30 @@
+# .NET build output
+bin/
+obj/
+artifacts/
+*.nupkg
+*.snupkg
+TestResults/
+*.trx
+*.coverage
+coverage*.xml
+
+# IDEs and editors
+.vs/
+.idea/
+*.user
+*.suo
+*.DotSettings.user
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+*.log
+Thumbs.db
+desktop.ini
+.DS_Store
+
+sandbox/
+
+# verify snapshot diffs, only *.verified.* is committed
+*.received.*

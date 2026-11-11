@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Torii.Core/Torii.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Torii.Tests/Torii.Tests.csproj" />
+  </Folder>
+</Solution>
