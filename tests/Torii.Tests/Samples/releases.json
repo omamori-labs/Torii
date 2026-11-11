@@ -1,0 +1,106 @@
+[
+  {
+    "tag_name": "v0.2.0",
+    "name": "Omamori 0.2.0",
+    "draft": true,
+    "prerelease": false,
+    "published_at": null,
+    "assets": [
+      {
+        "name": "omamori-0.2.0.zip",
+        "size": 400000,
+        "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "browser_download_url": "https://github.com/omamori-labs/Omamori/releases/download/untagged-1/omamori-0.2.0.zip"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.1.0",
+    "name": "Omamori 0.1.0",
+    "draft": false,
+    "prerelease": false,
+    "published_at": "2026-11-20T18:30:00Z",
+    "assets": [
+      {
+        "name": "Omamori.Templates.0.1.0.nupkg",
+        "size": 12000,
+        "digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "browser_download_url": "https://github.com/omamori-labs/Omamori/releases/download/v0.1.0/Omamori.Templates.0.1.0.nupkg"
+      },
+      {
+        "name": "omamori-0.1.0.zip",
+        "size": 345678,
+        "digest": "sha256:ABCDEF0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+        "browser_download_url": "https://github.com/omamori-labs/Omamori/releases/download/v0.1.0/omamori-0.1.0.zip"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.1.0-alpha.5",
+    "name": "Omamori 0.1.0-alpha.5",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-08T12:00:00Z",
+    "assets": [
+      {
+        "name": "omamori-0.1.0-alpha.5.zip",
+        "size": 340000,
+        "digest": "sha256:996e59d331d551b034820442567b2b7636317185359d38a40bb5cc957b7bacbf",
+        "browser_download_url": "https://github.com/omamori-labs/Omamori/releases/download/v0.1.0-alpha.5/omamori-0.1.0-alpha.5.zip"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.1.0-alpha.4",
+    "name": "packages only",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-05T12:00:00Z",
+    "assets": [
+      {
+        "name": "Omamori.ModBuildConfig.0.1.0-alpha.4.nupkg",
+        "size": 50000,
+        "digest": "sha256:3013b41d64601068f10132ea8319c7f4f65431fc348cc9dc76e9d6640ab4707d",
+        "browser_download_url": "https://github.com/omamori-labs/Omamori/releases/download/v0.1.0-alpha.4/Omamori.ModBuildConfig.0.1.0-alpha.4.nupkg"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.1.0-alpha.3",
+    "name": "no digest",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-02T12:00:00Z",
+    "assets": [
+      {
+        "name": "omamori-0.1.0-alpha.3.zip",
+        "size": 330000,
+        "digest": null,
+        "browser_download_url": "https://github.com/omamori-labs/Omamori/releases/download/v0.1.0-alpha.3/omamori-0.1.0-alpha.3.zip"
+      }
+    ]
+  },
+  {
+    "tag_name": "v0.1.0-alpha.2",
+    "name": "not https",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-11-01T12:00:00Z",
+    "assets": [
+      {
+        "name": "omamori-0.1.0-alpha.2.zip",
+        "size": 320000,
+        "digest": "sha256:5ad646827a9f94e2b8d2d12021f259fcc444f886694b8fcdb63d930f994a0615",
+        "browser_download_url": "http://example.com/omamori-0.1.0-alpha.2.zip"
+      }
+    ]
+  },
+  {
+    "tag_name": "nightly",
+    "name": "not a version tag",
+    "draft": false,
+    "prerelease": true,
+    "published_at": "2026-10-30T12:00:00Z",
+    "assets": []
+  }
+]
