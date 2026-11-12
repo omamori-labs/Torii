@@ -1,0 +1,26 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:Torii"
+        x:Class="Torii.MainWindow"
+        x:DataType="local:MainViewModel"
+        Title="Torii"
+        Width="640" Height="320"
+        MinWidth="420" MinHeight="260">
+    <StackPanel Margin="24" Spacing="20">
+        <TextBlock Text="Torii" FontSize="28" FontWeight="SemiBold" />
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="osu! data folder" Opacity="0.6" />
+            <SelectableTextBlock Text="{Binding DataDirectory}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding Warning}"
+                       IsVisible="{Binding Warning, Converter={x:Static ObjectConverters.IsNotNull}}"
+                       Foreground="Orange"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <StackPanel Spacing="4">
+            <TextBlock Text="Omamori" Opacity="0.6" />
+            <TextBlock Text="{Binding Summary}" />
+        </StackPanel>
+    </StackPanel>
+</Window>
