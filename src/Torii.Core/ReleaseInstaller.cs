@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,7 +31,7 @@ namespace Torii.Core
 
             try
             {
-                string hash = await download(release, zip, progress, cancellation).ConfigureAwait(false);
+                string hash = await Downloads.ToFileAsync(http, release.Download, zip, release.Size, progress, cancellation).ConfigureAwait(false);
 
                 if (!string.Equals(hash, release.Sha256, StringComparison.Ordinal))
                     throw new InvalidDataException($"The download of Omamori {release.Version} doesn't match its checksum.");
@@ -43,45 +42,6 @@ namespace Torii.Core
             {
                 File.Delete(zip);
             }
-        }
-
-        private async Task<string> download(OmamoriRelease release, string path, IProgress<double>? progress, CancellationToken cancellation)
-        {
-            using var request = new HttpRequestMessage(HttpMethod.Get, release.Download);
-            request.Headers.UserAgent.ParseAdd("Torii");
-
-            using HttpResponseMessage response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellation).ConfigureAwait(false);
-            response.EnsureSuccessStatusCode();
-
-            long total = response.Content.Headers.ContentLength ?? release.Size;
-
-            using var sha256 = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-            byte[] buffer = new byte[81920];
-            long done = 0;
-
-            Stream source = await response.Content.ReadAsStreamAsync(cancellation).ConfigureAwait(false);
-            await using (source.ConfigureAwait(false))
-            {
-                FileStream target = File.Create(path);
-                await using (target.ConfigureAwait(false))
-                {
-                    int read;
-
-                    while ((read = await source.ReadAsync(buffer, cancellation).ConfigureAwait(false)) > 0)
-                    {
-                        sha256.AppendData(buffer, 0, read);
-                        await target.WriteAsync(buffer.AsMemory(0, read), cancellation).ConfigureAwait(false);
-
-                        done += read;
-                        if (total > 0)
-                            progress?.Report(Math.Min(1, (double)done / total));
-                    }
-                }
-            }
-
-            progress?.Report(1);
-
-            return Convert.ToHexStringLower(sha256.GetHashAndReset());
         }
     }
 }
