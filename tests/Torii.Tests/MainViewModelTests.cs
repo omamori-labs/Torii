@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -21,6 +24,8 @@ namespace Torii.Tests
         private RouteHandler handler = null!;
         private HttpClient http = null!;
         private bool osuRunning;
+        private List<ProcessStartInfo> started = null!;
+        private Action? launched;
 
         [SetUp]
         public void SetUp()
@@ -32,6 +37,8 @@ namespace Torii.Tests
             handler = new RouteHandler();
             http = new HttpClient(handler);
             osuRunning = false;
+            started = [];
+            launched = null;
         }
 
         [TearDown]
@@ -51,7 +58,6 @@ namespace Torii.Tests
             {
                 Assert.That(model.Summary, Is.EqualTo("Not set up yet"));
                 Assert.That(model.InstallLabel, Is.EqualTo("Set up"));
-                Assert.That(model.InstanceDirectory, Is.EqualTo(instance.Directory));
                 Assert.That(model.HasMods, Is.False);
             }
         }
@@ -239,8 +245,80 @@ namespace Torii.Tests
             Assert.That(model.Mods, Has.Count.EqualTo(1));
         }
 
-        private MainViewModel create() =>
-            new MainViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), () => osuRunning);
+        [Test]
+        public void ThereIsNothingToPlayBeforeSetup()
+        {
+            MainViewModel model = create();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.IsSetUp, Is.False);
+                Assert.That(model.PlayCommand.CanExecute(null), Is.False);
+            }
+        }
+
+        [Test]
+        public void PlayingStartsTheInstancesGame()
+        {
+            placeGame();
+            MainViewModel model = create();
+
+            model.PlayCommand.Execute(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(started.Single().FileName, Is.EqualTo(instance.Executable));
+                Assert.That(model.Status, Is.EqualTo("Starting osu!..."));
+            }
+        }
+
+        [Test]
+        public void OnceTheGameRunsItCannotBeStartedAgain()
+        {
+            placeGame();
+            MainViewModel model = create();
+            launched = () => osuRunning = true;
+
+            model.PlayCommand.Execute(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.OsuRunning, Is.True);
+                Assert.That(model.PlayCommand.CanExecute(null), Is.False);
+                Assert.That(model.CanEdit, Is.False);
+            }
+        }
+
+        [Test]
+        public void GameThatFailsToStartSaysWhy()
+        {
+            placeGame();
+            MainViewModel model = create();
+            launched = () => throw new Win32Exception("blocked");
+
+            model.PlayCommand.Execute(null);
+
+            Assert.That(model.Status, Is.EqualTo("Couldn't start osu!. blocked"));
+        }
+
+        private void placeGame()
+        {
+            Directory.CreateDirectory(instance.Directory);
+
+            foreach (string file in new[] { instance.Executable, Path.Combine(instance.Directory, "osu.Game.dll"), instance.PortableMarker })
+                File.WriteAllText(file, string.Empty);
+        }
+
+        private MainViewModel create()
+        {
+            var launcher = new GameLauncher(info =>
+            {
+                launched?.Invoke();
+                started.Add(info);
+            });
+
+            return new MainViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), () => osuRunning, launcher);
+        }
 
         private void mod(string id, string name, string author = "", string capabilities = "\"Cosmetic\"")
         {

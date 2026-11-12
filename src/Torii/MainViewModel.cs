@@ -1,5 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -18,18 +19,19 @@ namespace Torii
         private readonly InstanceSetup setup;
         private readonly Func<bool> osuRunning;
         private readonly ModLibrary library;
+        private readonly GameLauncher launcher;
 
         private string? installedVersion;
 
-        public MainViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, Func<bool>? osuRunning = null)
+        public MainViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, Func<bool>? osuRunning = null, GameLauncher? launcher = null)
         {
             this.instance = instance;
             this.feed = feed;
             this.setup = setup;
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
             library = new ModLibrary(instance.Omamori, this.osuRunning);
+            this.launcher = launcher ?? new GameLauncher();
 
-            InstanceDirectory = instance.Directory;
             Summary = string.Empty;
 
             refreshInstance();
@@ -44,8 +46,6 @@ namespace Torii
         /// <summary>Whether anything in the instance may be changed right now</summary>
         public bool CanEdit => !IsBusy && !OsuRunning;
 
-        public string InstanceDirectory { get; }
-
         public ObservableCollection<OmamoriRelease> Releases { get; } = [];
 
         [ObservableProperty]
@@ -57,15 +57,20 @@ namespace Torii
         [NotifyCanExecuteChangedFor(nameof(InstallCommand))]
         public partial OmamoriRelease? SelectedRelease { get; set; }
 
+        /// <summary>Whether there is a game to play</summary>
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(PlayCommand))]
+        public partial bool IsSetUp { get; private set; }
+
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand))]
         public partial bool IsBusy { get; private set; }
 
         /// <summary>The instance's game, the player's own osu! doesn't count</summary>
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand))]
         public partial bool OsuRunning { get; private set; }
 
         /// <summary>Progress of the current download, 0 to 1</summary>
@@ -192,7 +197,25 @@ namespace Torii
             }
         }
 
+        [RelayCommand(CanExecute = nameof(canPlay))]
+        public void Play()
+        {
+            try
+            {
+                launcher.Launch(instance);
+                Status = "Starting osu!...";
+            }
+            catch (Exception e) when (e is InvalidOperationException or Win32Exception or IOException)
+            {
+                Status = $"Couldn't start osu!. {e.Message}";
+            }
+
+            RefreshOsuRunning();
+        }
+
         private bool canInstall() => SelectedRelease != null && !IsBusy && !OsuRunning;
+
+        private bool canPlay() => IsSetUp && !IsBusy && !OsuRunning;
 
         private void showProgress(OmamoriRelease release, SetupProgress progress)
         {
@@ -213,6 +236,8 @@ namespace Torii
         {
             string? osu = instance.IsInstalled ? instance.ReadVersion() ?? "unknown version" : null;
             installedVersion = instance.Omamori.IsInstalled ? instance.Omamori.ReadVersion() ?? "unknown" : null;
+
+            IsSetUp = osu != null;
 
             Summary = (osu, installedVersion) switch
             {
