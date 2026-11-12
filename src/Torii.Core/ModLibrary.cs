@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -13,11 +14,20 @@ namespace Torii.Core
         // FaultHistory.STRIKES_TO_SKIP in Omamori
         private const int strikes_to_skip = 2;
 
-        private readonly OmamoriInstall install;
+        // Same output as Omamori's JsonFile
+        private static readonly JsonSerializerOptions json_options = new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
 
-        public ModLibrary(OmamoriInstall install)
+        private readonly OmamoriInstall install;
+        private readonly Func<bool> osuRunning;
+
+        public ModLibrary(OmamoriInstall install, Func<bool>? osuRunning = null)
         {
             this.install = install;
+            this.osuRunning = osuRunning ?? OsuProcess.IsRunning;
         }
 
         /// <summary>In the order Omamori discovers them. Folders without a mod.json aren't mods</summary>
@@ -43,6 +53,58 @@ namespace Torii.Core
             }
 
             return mods;
+        }
+
+        /// <summary>Takes effect the next time osu! starts</summary>
+        /// <exception cref="InvalidOperationException">osu! is running and would overwrite the change</exception>
+        public void SetEnabled(string id, bool enabled)
+        {
+            requireOsuClosed();
+
+            JsonObject settings = readState(install.SettingsFile);
+
+            if (settings["disabledMods"] is not JsonArray disabled)
+                settings["disabledMods"] = disabled = [];
+
+            List<JsonNode?> matches = [.. disabled.Where(d => text(d) == id)];
+
+            if (enabled == (matches.Count == 0))
+                return;
+
+            foreach (JsonNode? match in matches)
+                disabled.Remove(match);
+
+            if (!enabled)
+                disabled.Add(id);
+
+            writeState(install.SettingsFile, settings);
+        }
+
+        /// <summary>Clears a mod's crash history so Omamori loads it again</summary>
+        /// <exception cref="InvalidOperationException">osu! is running and would overwrite the change</exception>
+        public void Retry(string id)
+        {
+            requireOsuClosed();
+
+            JsonObject faults = readState(install.FaultsFile);
+
+            if (faults["mods"] is JsonObject mods && mods.Remove(id))
+                writeState(install.FaultsFile, faults);
+        }
+
+        private void requireOsuClosed()
+        {
+            if (osuRunning())
+                throw new InvalidOperationException("Close osu! first, it would overwrite the change.");
+        }
+
+        private static void writeState(string path, JsonObject state)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+            string temporary = path + ".tmp";
+            File.WriteAllText(temporary, state.ToJsonString(json_options));
+            File.Move(temporary, path, overwrite: true);
         }
 
         private static InstalledMod describe(string directory, string manifestPath, HashSet<string> disabled, JsonObject faults, HashSet<string> seen)
