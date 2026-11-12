@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -90,6 +91,97 @@ namespace Torii.Core
 
             if (faults["mods"] is JsonObject mods && mods.Remove(id))
                 writeState(install.FaultsFile, faults);
+        }
+
+        /// <summary>Deletes the mod's folder. Its settings and data under omamori/ are kept</summary>
+        /// <exception cref="InvalidOperationException">osu! is running and has the mod loaded</exception>
+        public void Remove(InstalledMod mod)
+        {
+            requireOsuClosed();
+
+            if (!Paths.IsInside(install.ModsDirectory, Path.GetFullPath(mod.Directory)))
+                throw new ArgumentException("Not a mod of this install.", nameof(mod));
+
+            if (Directory.Exists(mod.Directory))
+                Directory.Delete(mod.Directory, recursive: true);
+
+            // So installing it again later doesn't start turned off
+            if (mod.Manifest != null && !List().Any(m => m.Manifest?.Id == mod.Manifest.Id))
+                SetEnabled(mod.Manifest.Id, true);
+        }
+
+        /// <summary>Installs or updates a mod from a zip with a mod.json at its root or in its only top folder</summary>
+        /// <exception cref="InvalidDataException">Not an Omamori mod. Nothing was changed</exception>
+        /// <exception cref="InvalidOperationException">osu! is running and may have the old version loaded</exception>
+        public InstalledMod InstallFromZip(string zipPath)
+        {
+            requireOsuClosed();
+
+            // Not in mods/, a leftover there would show up as a mod
+            string staging = Path.Combine(install.Root, $".torii-{Guid.NewGuid():N}");
+
+            try
+            {
+                extractMod(zipPath, staging);
+
+                ModInfo manifest = ModManifestReader.Read(Path.Combine(staging, ModManifestReader.FILENAME));
+
+                if (!File.Exists(Path.Combine(staging, manifest.Entry)))
+                    throw new InvalidDataException($"This isn't an Omamori mod, {manifest.Entry} is missing from the zip.");
+
+                foreach (InstalledMod old in List().Where(m => m.Manifest?.Id == manifest.Id))
+                    Directory.Delete(old.Directory, recursive: true);
+
+                string target = Path.Combine(install.ModsDirectory, manifest.Id);
+
+                if (Directory.Exists(target))
+                    throw new IOException($"The folder {manifest.Id} in the mods folder is in use by something else.");
+
+                Directory.CreateDirectory(install.ModsDirectory);
+                Directory.Move(staging, target);
+
+                return List().First(m => Paths.Same(m.Directory, target));
+            }
+            finally
+            {
+                if (Directory.Exists(staging))
+                    Directory.Delete(staging, recursive: true);
+            }
+        }
+
+        private static void extractMod(string zipPath, string staging)
+        {
+            using ZipArchive archive = Zips.Open(zipPath);
+
+            List<(ZipArchiveEntry Entry, string Name)> files =
+            [
+                .. archive.Entries.Select(e => (Entry: e, Name: Paths.EntryName(e.FullName))).Where(f => !f.Name.EndsWith('/'))
+            ];
+
+            string prefix = modFolder([.. files.Select(f => f.Name)])
+                            ?? throw new InvalidDataException($"This isn't an Omamori mod, it has no {ModManifestReader.FILENAME}.");
+
+            foreach ((ZipArchiveEntry entry, string name) in files)
+            {
+                string path = Path.GetFullPath(Path.Combine(staging, name[prefix.Length..]));
+
+                if (!Paths.IsInside(staging, path))
+                    throw new InvalidDataException($"This isn't an Omamori mod, it has {name} in it.");
+
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                entry.ExtractToFile(path);
+            }
+        }
+
+        // Omamori's build packs mods as <id>/mod.json, a hand-made zip may have it at the root
+        private static string? modFolder(List<string> names)
+        {
+            if (names.Contains(ModManifestReader.FILENAME))
+                return string.Empty;
+
+            List<string> folders = [.. names.Select(n => n.Split('/')[0]).Distinct()];
+
+            return folders.Count == 1 && names.Contains($"{folders[0]}/{ModManifestReader.FILENAME}") ? $"{folders[0]}/" : null;
         }
 
         private void requireOsuClosed()

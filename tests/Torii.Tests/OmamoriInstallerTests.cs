@@ -98,6 +98,9 @@ namespace Torii.Tests
         [TestCase("omamori/mods/someone.mod/Mod.dll")]
         [TestCase("omamori/settings.json")]
         [TestCase("omamori/faults.json")]
+        [TestCase("omamori/config/someone.mod.json")]
+        [TestCase("omamori/data/someone.mod/save.dat")]
+        [TestCase("omamori/readme.txt")]
         public void ZipReachingOutsideTheLoaderIsRejected(string entry)
         {
             string path = zip(ruleset_entry, core_entry, entry);
