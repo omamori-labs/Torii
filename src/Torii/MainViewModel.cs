@@ -43,6 +43,12 @@ namespace Torii
 
         public bool HasMods => Mods.Count > 0;
 
+        /// <summary>Before setup there is nowhere for mods to go, so saying there are none is noise</summary>
+        public bool NoMods => IsSetUp && !HasMods;
+
+        /// <summary>Set by the window, returns the zip the player picked or null</summary>
+        public Func<Task<string?>>? PickModZip { get; set; }
+
         /// <summary>Whether anything in the instance may be changed right now</summary>
         public bool CanEdit => !IsBusy && !OsuRunning;
 
@@ -59,18 +65,19 @@ namespace Torii
 
         /// <summary>Whether there is a game to play</summary>
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(PlayCommand))]
+        [NotifyPropertyChangedFor(nameof(NoMods))]
+        [NotifyCanExecuteChangedFor(nameof(PlayCommand), nameof(AddModCommand))]
         public partial bool IsSetUp { get; private set; }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand))]
         public partial bool IsBusy { get; private set; }
 
         /// <summary>The instance's game, the player's own osu! doesn't count</summary>
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand))]
         public partial bool OsuRunning { get; private set; }
 
         /// <summary>Progress of the current download, 0 to 1</summary>
@@ -131,6 +138,7 @@ namespace Torii
                 Mods.Add(new ModItemViewModel(this, mod));
 
             OnPropertyChanged(nameof(HasMods));
+            OnPropertyChanged(nameof(NoMods));
         }
 
         internal void SetEnabled(ModItemViewModel row, bool enabled)
@@ -147,6 +155,55 @@ namespace Torii
 
             RefreshMods();
             row.Revert();
+        }
+
+        internal void Remove(ModItemViewModel row)
+        {
+            try
+            {
+                library.Remove(row.Mod);
+                Status = $"{row.Label} is removed. Its settings were kept.";
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                Status = $"Couldn't remove {row.Label}. {e.Message}";
+            }
+
+            RefreshMods();
+        }
+
+        internal void Retry(ModItemViewModel row)
+        {
+            try
+            {
+                library.Retry(row.Mod.Manifest!.Id);
+                Status = $"{row.Label} is tried again the next time osu! starts.";
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                Status = $"Couldn't reset {row.Label}. {e.Message}";
+            }
+
+            RefreshMods();
+        }
+
+        [RelayCommand(CanExecute = nameof(canAddMod))]
+        public async Task AddModAsync()
+        {
+            if (PickModZip == null || await PickModZip() is not string zip)
+                return;
+
+            try
+            {
+                InstalledMod mod = library.InstallFromZip(zip);
+                Status = $"{mod.Label} {mod.Manifest?.Version} is installed.";
+            }
+            catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                Status = $"Couldn't add the mod. {e.Message}";
+            }
+
+            RefreshMods();
         }
 
         [RelayCommand]
@@ -216,6 +273,8 @@ namespace Torii
         private bool canInstall() => SelectedRelease != null && !IsBusy && !OsuRunning;
 
         private bool canPlay() => IsSetUp && !IsBusy && !OsuRunning;
+
+        private bool canAddMod() => IsSetUp && !IsBusy && !OsuRunning;
 
         private void showProgress(OmamoriRelease release, SetupProgress progress)
         {

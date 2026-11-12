@@ -25,6 +25,7 @@
                 </ComboBox>
                 <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes.accent="{Binding !IsSetUp}" />
                 <Button Content="Play" Command="{Binding PlayCommand}" IsVisible="{Binding IsSetUp}" Classes="accent" />
+                <Button Content="Add mod" Command="{Binding AddModCommand}" IsVisible="{Binding IsSetUp}" />
             </StackPanel>
 
             <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
@@ -34,13 +35,13 @@
         </StackPanel>
 
         <Panel>
-            <TextBlock Text="No mods installed." IsVisible="{Binding !HasMods}" Opacity="0.6" />
+            <TextBlock Text="No mods installed." IsVisible="{Binding NoMods}" Opacity="0.6" />
 
             <ScrollViewer IsVisible="{Binding HasMods}">
                 <ItemsControl ItemsSource="{Binding Mods}" IsEnabled="{Binding CanEdit}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="local:ModItemViewModel">
-                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16" Margin="0,0,0,12">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
                                 <StackPanel Spacing="2">
                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                         <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
@@ -59,7 +60,10 @@
                                                TextWrapping="Wrap" />
                                 </StackPanel>
 
-                                <ToggleSwitch Grid.Column="1"
+                                <Button Grid.Column="1" Content="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" VerticalAlignment="Center" />
+                                <Button Grid.Column="2" Content="Remove" Command="{Binding RemoveCommand}" VerticalAlignment="Center" />
+
+                                <ToggleSwitch Grid.Column="3"
                                               IsChecked="{Binding IsOn}"
                                               IsEnabled="{Binding CanToggle}"
                                               OnContent="" OffContent=""

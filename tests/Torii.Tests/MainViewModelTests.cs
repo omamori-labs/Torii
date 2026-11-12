@@ -301,6 +301,163 @@ namespace Torii.Tests
             Assert.That(model.Status, Is.EqualTo("Couldn't start osu!. blocked"));
         }
 
+        [Test]
+        public void NothingSaysThereAreNoModsBeforeSetup()
+        {
+            MainViewModel model = create();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.NoMods, Is.False);
+                Assert.That(model.AddModCommand.CanExecute(null), Is.False);
+            }
+        }
+
+        [Test]
+        public void SetUpInstanceWithoutModsSaysSo()
+        {
+            placeGame();
+
+            Assert.That(create().NoMods, Is.True);
+        }
+
+        [Test]
+        public async Task AddingAModFromAZipListsIt()
+        {
+            placeGame();
+            MainViewModel model = create();
+            model.PickModZip = () => Task.FromResult<string?>(modZip("someone.coolmod", "Cool Mod"));
+
+            await model.AddModCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Mods.Single().Label, Is.EqualTo("Cool Mod"));
+                Assert.That(model.Status, Is.EqualTo("Cool Mod 1.0.0 is installed."));
+                Assert.That(model.NoMods, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task CancellingThePickerChangesNothing()
+        {
+            placeGame();
+            MainViewModel model = create();
+            model.PickModZip = () => Task.FromResult<string?>(null);
+
+            await model.AddModCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Mods, Is.Empty);
+                Assert.That(model.Status, Is.Null);
+            }
+        }
+
+        [Test]
+        public async Task AddingSomethingThatIsNotAModSaysWhy()
+        {
+            placeGame();
+            MainViewModel model = create();
+            string notAMod = Path.Combine(directory, "not-a-mod.zip");
+            File.WriteAllBytes(notAMod, Fixtures.Zip(("readme.txt", "hi"u8.ToArray())));
+            model.PickModZip = () => Task.FromResult<string?>(notAMod);
+
+            await model.AddModCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Mods, Is.Empty);
+                Assert.That(model.Status, Does.StartWith("Couldn't add the mod."));
+            }
+        }
+
+        [Test]
+        public void RemovingAModTakesItOffTheList()
+        {
+            mod("a.mod", "Cool Mod");
+            MainViewModel model = create();
+
+            model.Mods[0].RemoveCommand.Execute(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Mods, Is.Empty);
+                Assert.That(Directory.Exists(Path.Combine(instance.Omamori.ModsDirectory, "a.mod")), Is.False);
+                Assert.That(model.Status, Is.EqualTo("Cool Mod is removed. Its settings were kept."));
+            }
+        }
+
+        [Test]
+        public void RemovingAModWhileTheInstanceRunsIsRefused()
+        {
+            mod("a.mod", "Cool Mod");
+            MainViewModel model = create();
+
+            osuRunning = true;
+            model.Mods[0].RemoveCommand.Execute(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Mods, Has.Count.EqualTo(1));
+                Assert.That(model.Status, Does.StartWith("Couldn't remove Cool Mod."));
+            }
+        }
+
+        [Test]
+        public void OnlyACrashedModCanBeTriedAgain()
+        {
+            mod("a.crashed", "Crashed");
+            mod("b.fine", "Fine");
+            crash("a.crashed");
+
+            MainViewModel model = create();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Mods[0].CanRetry, Is.True);
+                Assert.That(model.Mods[0].Problem, Does.StartWith("Crashed in 2 sessions"));
+                Assert.That(model.Mods[1].CanRetry, Is.False);
+            }
+        }
+
+        [Test]
+        public void TryingACrashedModAgainClearsItsProblem()
+        {
+            mod("a.crashed", "Crashed");
+            crash("a.crashed");
+            MainViewModel model = create();
+
+            model.Mods[0].RetryCommand.Execute(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Mods[0].CanRetry, Is.False);
+                Assert.That(model.Mods[0].Problem, Is.Empty);
+                Assert.That(model.Status, Is.EqualTo("Crashed is tried again the next time osu! starts."));
+            }
+        }
+
+        private string modZip(string id, string name)
+        {
+            string path = Path.Combine(directory, $"{id}.zip");
+
+            File.WriteAllBytes(path, Fixtures.Zip(
+                ($"{id}/Mod.dll", []),
+                ($"{id}/mod.json", Encoding.UTF8.GetBytes($$"""
+                    { "id": "{{id}}", "name": "{{name}}", "version": "1.0.0", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": ["Cosmetic"] }
+                    """))));
+
+            return path;
+        }
+
+        private void crash(string id)
+        {
+            File.WriteAllText(instance.Omamori.FaultsFile, $$"""
+                { "session": 7, "mods": { "{{id}}": { "version": "1.0.0", "strikes": 2, "lastSession": 7, "lastError": "boom" } } }
+                """);
+        }
+
         private void placeGame()
         {
             Directory.CreateDirectory(instance.Directory);
