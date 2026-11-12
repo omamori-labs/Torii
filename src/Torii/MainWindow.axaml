@@ -1,11 +1,12 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="using:Torii"
+        xmlns:core="using:Torii.Core"
         x:Class="Torii.MainWindow"
         x:DataType="local:MainViewModel"
         Title="Torii"
-        Width="640" Height="320"
-        MinWidth="420" MinHeight="260">
+        Width="640" Height="420"
+        MinWidth="480" MinHeight="360">
     <StackPanel Margin="24" Spacing="20">
         <TextBlock Text="Torii" FontSize="28" FontWeight="SemiBold" />
 
@@ -18,9 +19,34 @@
                        TextWrapping="Wrap" />
         </StackPanel>
 
-        <StackPanel Spacing="4">
+        <StackPanel Spacing="8">
             <TextBlock Text="Omamori" Opacity="0.6" />
             <TextBlock Text="{Binding Summary}" />
+
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <ComboBox ItemsSource="{Binding Releases}"
+                          SelectedItem="{Binding SelectedRelease}"
+                          IsEnabled="{Binding !IsBusy}"
+                          MinWidth="200"
+                          PlaceholderText="No releases">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="core:OmamoriRelease">
+                            <TextBlock Text="{Binding Version}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes="accent" />
+                <Button Content="Uninstall" Command="{Binding UninstallCommand}" />
+            </StackPanel>
+
+            <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
+
+            <TextBlock Text="Close osu! to install, update or uninstall."
+                       IsVisible="{Binding OsuRunning}"
+                       Foreground="Orange" />
+            <TextBlock Text="{Binding Status}"
+                       IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}"
+                       TextWrapping="Wrap" />
         </StackPanel>
     </StackPanel>
 </Window>

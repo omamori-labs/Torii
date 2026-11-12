@@ -17,6 +17,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Torii.Core\Torii.Core.csproj" />
+    <ProjectReference Include="..\..\src\Torii\Torii.csproj" />
   </ItemGroup>
 
 </Project>
