@@ -5,10 +5,7 @@ using System.IO;
 
 namespace Torii.Core
 {
-    /// <summary>
-    ///     whether osu!lazer is open
-    ///     while it is, it has omamori's files loaded and overwrites omamori's state files with what it has in memory
-    /// </summary>
+    /// <summary>While lazer runs it locks Omamori's files and rewrites the state files from memory</summary>
     public static class OsuProcess
     {
         public const string PROCESS_NAME = "osu!";
@@ -34,7 +31,7 @@ namespace Torii.Core
             }
         }
 
-        /// <summary>osu!stable runs under the same name on windows, lazer is the one with the game library next to it</summary>
+        /// <summary>Stable has the same process name on Windows. Lazer has osu.Game.dll next to it</summary>
         internal static bool IsLazer(string? executable)
         {
             if (executable == null || !OperatingSystem.IsWindows())
@@ -51,12 +48,12 @@ namespace Torii.Core
             }
             catch (InvalidOperationException)
             {
-                // it closed while we were looking
+                // Exited while being inspected
                 return false;
             }
             catch (Win32Exception)
             {
-                // not ours to inspect, so it can't be ruled out
+                // Access denied, so it can't be ruled out
                 return true;
             }
         }

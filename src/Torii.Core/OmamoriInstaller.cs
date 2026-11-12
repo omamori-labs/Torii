@@ -6,14 +6,11 @@ using System.Linq;
 
 namespace Torii.Core
 {
-    /// <summary>
-    ///     puts a release zip into a data folder and takes it out again
-    ///     osu! has to be closed, it keeps omamori's files open while it runs
-    /// </summary>
+    /// <summary>Installs and removes the loader. osu! must be closed, it keeps these files open</summary>
     public static class OmamoriInstaller
     {
-        /// <summary>installs or updates, the player's mods and omamori's state files are left alone</summary>
-        /// <exception cref="InvalidDataException">the file isn't an omamori release, nothing was changed</exception>
+        /// <summary>Installs or updates. Mods and state files are left alone</summary>
+        /// <exception cref="InvalidDataException">Not an Omamori release. Nothing was changed</exception>
         public static void InstallFromZip(OmamoriInstall install, string zipPath)
         {
             using ZipArchive archive = open(zipPath);
@@ -22,7 +19,7 @@ namespace Torii.Core
 
             foreach (ZipArchiveEntry entry in archive.Entries)
             {
-                // zips made on windows can have either separator
+                // Zips made on Windows can use either separator
                 string name = entry.FullName.Replace('\\', '/');
                 if (name.EndsWith('/'))
                     continue;
@@ -33,7 +30,7 @@ namespace Torii.Core
             if (!files.Any(f => samePath(f.Destination, install.RulesetAssembly)) || !files.Any(f => samePath(f.Destination, install.CoreAssembly)))
                 throw new InvalidDataException("This isn't an Omamori release, it has no loader in it.");
 
-            // dlls from the old version that the new one no longer ships must not stay loadable
+            // Otherwise dlls dropped by the new release would still get loaded
             if (Directory.Exists(install.CoreDirectory))
                 Directory.Delete(install.CoreDirectory, recursive: true);
 
@@ -44,12 +41,12 @@ namespace Torii.Core
             }
         }
 
-        /// <summary>removes the loader, and with <paramref name="removeMods"/> everything else omamori keeps too</summary>
+        /// <summary>Removes the loader, and with <paramref name="removeMods"/> the mods and state too</summary>
         public static void Uninstall(OmamoriInstall install, bool removeMods = false)
         {
             if (Directory.Exists(install.RulesetsDirectory))
             {
-                // the bootstrap ships with its pdb
+                // The bootstrap ships with a pdb
                 foreach (string file in Directory.EnumerateFiles(install.RulesetsDirectory, Path.ChangeExtension(OmamoriInstall.RULESET_FILENAME, ".*")))
                     File.Delete(file);
             }

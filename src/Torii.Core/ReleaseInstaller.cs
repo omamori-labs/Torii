@@ -7,9 +7,7 @@ using System.Threading.Tasks;
 
 namespace Torii.Core
 {
-    /// <summary>
-    ///     downloads a release, checks it's the file github says it is, and installs it
-    /// </summary>
+    /// <summary>Downloads a release, checks its hash and installs it</summary>
     public sealed class ReleaseInstaller
     {
         private readonly HttpClient http;
@@ -21,15 +19,12 @@ namespace Torii.Core
             this.temporaryDirectory = temporaryDirectory ?? Path.GetTempPath();
         }
 
-        /// <param name="install">where to install to</param>
-        /// <param name="release">what to install</param>
-        /// <param name="progress">how much of the download is done, 0 to 1</param>
-        /// <param name="cancellation">stops the download, the install itself isn't interrupted</param>
-        /// <exception cref="InvalidDataException">the download can't be trusted or isn't an omamori release, nothing was changed</exception>
-        /// <exception cref="HttpRequestException">the download failed, nothing was changed</exception>
+        /// <summary>Progress is 0 to 1. Cancelling stops the download, not the install</summary>
+        /// <exception cref="InvalidDataException">Hash missing or wrong, or not an Omamori release. Nothing was changed</exception>
+        /// <exception cref="HttpRequestException">Download failed. Nothing was changed</exception>
         public async Task InstallAsync(OmamoriInstall install, OmamoriRelease release, IProgress<double>? progress = null, CancellationToken cancellation = default)
         {
-            // what's in the zip runs inside osu!, so an unchecked one isn't installed
+            // The zip's contents run inside osu!, so no hash means no install
             if (release.Sha256 == null)
                 throw new InvalidDataException($"Omamori {release.Version} has no checksum to check the download against.");
 

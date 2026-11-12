@@ -172,7 +172,7 @@ namespace Torii.Tests
             return stream.ToArray();
         }
 
-        // Progress<T> reports on another thread, this one keeps the order
+        // Progress<T> reports on another thread and loses the order
         private sealed class RecordingProgress : IProgress<double>
         {
             public List<double> Reported { get; } = [];

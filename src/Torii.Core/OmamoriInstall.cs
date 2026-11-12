@@ -4,13 +4,10 @@ using System.IO;
 
 namespace Torii.Core
 {
-    /// <summary>
-    ///     where omamori's files go inside one osu! data folder, whether it's installed there or not
-    ///     mirrors Layout in omamori's source
-    /// </summary>
+    /// <summary>Where Omamori's files go in one osu! data folder. Mirrors Layout in Omamori's source</summary>
     public sealed class OmamoriInstall
     {
-        /// <summary>the bootstrap lazer loads as a ruleset</summary>
+        /// <summary>The bootstrap, which lazer loads as a ruleset</summary>
         public const string RULESET_FILENAME = "osu.Game.Rulesets.Omamori.dll";
 
         public const string CORE_FILENAME = "Omamori.Core.dll";
@@ -26,7 +23,7 @@ namespace Torii.Core
 
         public string RulesetAssembly => Path.Combine(RulesetsDirectory, RULESET_FILENAME);
 
-        /// <summary>everything omamori keeps, the loader, the mods and its state files</summary>
+        /// <summary>Loader, mods and state files</summary>
         public string Root => Path.Combine(DataDirectory, "omamori");
 
         public string CoreDirectory => Path.Combine(Root, "core");
@@ -35,16 +32,16 @@ namespace Torii.Core
 
         public string ModsDirectory => Path.Combine(Root, "mods");
 
-        /// <summary>which mods the player turned off</summary>
+        /// <summary>Mods the player turned off</summary>
         public string SettingsFile => Path.Combine(Root, "settings.json");
 
-        /// <summary>which mods crashed in which session</summary>
+        /// <summary>Crash history per mod</summary>
         public string FaultsFile => Path.Combine(Root, "faults.json");
 
-        /// <summary>lazer only loads omamori with both halves there, the bootstrap and the core it starts</summary>
+        /// <summary>Needs both the bootstrap and the core it starts</summary>
         public bool IsInstalled => File.Exists(RulesetAssembly) && File.Exists(CoreAssembly);
 
-        /// <summary>the installed release, null when it isn't installed or the core doesn't say</summary>
+        /// <summary>Null when not installed or the core has no version stamp</summary>
         public string? ReadVersion()
         {
             if (!IsInstalled)
@@ -52,7 +49,7 @@ namespace Torii.Core
 
             try
             {
-                // the build stamps the release version here, followed by +commit
+                // Stamped as version+commit
                 string? stamped = FileVersionInfo.GetVersionInfo(CoreAssembly).ProductVersion;
                 string version = (stamped ?? string.Empty).Split('+')[0].Trim();
 

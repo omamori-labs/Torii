@@ -3,18 +3,15 @@ using System.IO;
 
 namespace Torii.Core
 {
-    /// <summary>
-    ///     osu!lazer's data folder, where the beatmaps and scores live and where omamori installs to
-    ///     not where the game itself is installed
-    /// </summary>
+    /// <summary>Data folder of osu!lazer (beatmaps, scores), not its install folder. Omamori installs here</summary>
     public static class OsuData
     {
-        /// <summary>lazer writes this into the default folder when the player moves their data somewhere else</summary>
+        /// <summary>Written by lazer into the default folder when the player moves their data</summary>
         public const string STORAGE_CONFIG = "storage.ini";
 
         private const string full_path_key = "FullPath";
 
-        /// <summary>where lazer keeps its data unless the player moved it</summary>
+        /// <summary>Where the data is unless the player moved it</summary>
         public static string DefaultDirectory()
         {
             Environment.SpecialFolder parent = OperatingSystem.IsLinux()
@@ -24,7 +21,7 @@ namespace Torii.Core
             return Path.Combine(Environment.GetFolderPath(parent), "osu");
         }
 
-        /// <summary>the folder lazer actually uses, following <see cref="STORAGE_CONFIG"/> when the data was moved</summary>
+        /// <summary>The folder actually in use, following <see cref="STORAGE_CONFIG"/></summary>
         public static string Resolve(string defaultDirectory)
         {
             string config = Path.Combine(defaultDirectory, STORAGE_CONFIG);
@@ -54,7 +51,7 @@ namespace Torii.Core
             return defaultDirectory;
         }
 
-        /// <summary>whether lazer has run with this as its data folder</summary>
+        /// <summary>True once lazer has run with this as its data folder</summary>
         public static bool LooksLikeData(string directory) =>
             File.Exists(Path.Combine(directory, "client.realm")) || Directory.Exists(Path.Combine(directory, "files"));
     }

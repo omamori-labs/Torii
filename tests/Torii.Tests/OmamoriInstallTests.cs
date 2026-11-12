@@ -81,7 +81,7 @@ namespace Torii.Tests
         [Test]
         public void VersionComesFromTheCoreWithoutTheCommit()
         {
-            // any real assembly does, this one is stamped the same way omamori's core is
+            // Any real assembly works, this one is stamped the same way as Omamori's core
             Assembly stamped = typeof(OmamoriInstall).Assembly;
             string informational = stamped.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion;
 
