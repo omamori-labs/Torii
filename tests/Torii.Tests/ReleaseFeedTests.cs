@@ -4,8 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
+using System.Text;
 using System.Text.Json;
-using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core;
@@ -88,7 +88,7 @@ namespace Torii.Tests
         [Test]
         public async Task ListingAsksGitHubWithAUserAgent()
         {
-            using var handler = new RecordingHandler(HttpStatusCode.OK, sample);
+            using var handler = new StubHandler(HttpStatusCode.OK, Encoding.UTF8.GetBytes(sample));
             using var http = new HttpClient(handler);
 
             IReadOnlyList<OmamoriRelease> releases = await new ReleaseFeed(http).ListAsync();
@@ -104,35 +104,10 @@ namespace Torii.Tests
         [Test]
         public void FailedRequestIsNotAnEmptyList()
         {
-            using var handler = new RecordingHandler(HttpStatusCode.Forbidden, "{ \"message\": \"API rate limit exceeded\" }");
+            using var handler = new StubHandler(HttpStatusCode.Forbidden, Encoding.UTF8.GetBytes("{ \"message\": \"API rate limit exceeded\" }"));
             using var http = new HttpClient(handler);
 
             Assert.That(async () => await new ReleaseFeed(http).ListAsync(), Throws.InstanceOf<HttpRequestException>());
-        }
-
-        // answers every request itself, so nothing here reaches the network
-        private sealed class RecordingHandler : HttpMessageHandler
-        {
-            private readonly HttpStatusCode status;
-            private readonly string body;
-
-            public RecordingHandler(HttpStatusCode status, string body)
-            {
-                this.status = status;
-                this.body = body;
-            }
-
-            public Uri? Requested { get; private set; }
-
-            public string? UserAgent { get; private set; }
-
-            protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-            {
-                Requested = request.RequestUri;
-                UserAgent = request.Headers.UserAgent.ToString();
-
-                return Task.FromResult(new HttpResponseMessage(status) { Content = new StringContent(body) });
-            }
         }
     }
 }
