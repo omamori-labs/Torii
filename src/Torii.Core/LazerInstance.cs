@@ -16,6 +16,10 @@ namespace Torii.Core
 
         public string Directory { get; }
 
+        /// <summary>Where Torii keeps its instance unless told otherwise</summary>
+        public static string DefaultDirectory() =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Torii", "instance");
+
         public string Executable => Path.Combine(Directory, OperatingSystem.IsWindows() ? "osu!.exe" : "osu!");
 
         /// <summary>osu!framework only keeps data beside the game when this file is there</summary>
