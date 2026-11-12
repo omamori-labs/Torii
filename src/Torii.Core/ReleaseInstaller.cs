@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Torii.Core
 {
-    /// <summary>Downloads a release, checks its hash and installs it</summary>
+    /// <summary>Downloads Omamori releases</summary>
     public sealed class ReleaseInstaller
     {
         private readonly HttpClient http;
@@ -18,24 +18,7 @@ namespace Torii.Core
             this.temporaryDirectory = temporaryDirectory ?? Path.GetTempPath();
         }
 
-        /// <summary>Progress is 0 to 1. Cancelling stops the download, not the install</summary>
-        /// <exception cref="InvalidDataException">Hash missing or wrong, or not an Omamori release. Nothing was changed</exception>
-        /// <exception cref="HttpRequestException">Download failed. Nothing was changed</exception>
-        public async Task InstallAsync(OmamoriInstall install, OmamoriRelease release, IProgress<double>? progress = null, CancellationToken cancellation = default)
-        {
-            string zip = await DownloadAsync(release, progress, cancellation).ConfigureAwait(false);
-
-            try
-            {
-                OmamoriInstaller.InstallFromZip(install, zip);
-            }
-            finally
-            {
-                File.Delete(zip);
-            }
-        }
-
-        /// <summary>Downloads the release zip and checks its hash. The caller deletes the file</summary>
+        /// <summary>Downloads the release zip and checks its hash. The caller deletes the file. Progress is 0 to 1</summary>
         /// <exception cref="InvalidDataException">Hash missing or wrong</exception>
         /// <exception cref="HttpRequestException">Download failed</exception>
         public async Task<string> DownloadAsync(OmamoriRelease release, IProgress<double>? progress = null, CancellationToken cancellation = default)

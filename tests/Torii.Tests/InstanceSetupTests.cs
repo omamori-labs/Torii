@@ -179,17 +179,6 @@ namespace Torii.Tests
         }
 
         [Test]
-        public void GameInTheInstanceFolderIsTheInstance()
-        {
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(OsuProcess.IsIn(Path.Combine(instance.Directory, "osu!.exe"), instance.Directory), Is.True);
-                Assert.That(OsuProcess.IsIn(Path.Combine(directory, "elsewhere", "osu!.exe"), instance.Directory), Is.False);
-                Assert.That(OsuProcess.IsIn(null, instance.Directory), Is.True);
-            }
-        }
-
-        [Test]
         public void DefaultInstanceIsInToriisOwnFolder()
         {
             Assert.That(LazerInstance.DefaultDirectory(), Does.EndWith(Path.Combine("Torii", "instance")));

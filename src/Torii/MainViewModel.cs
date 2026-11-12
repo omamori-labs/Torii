@@ -13,27 +13,26 @@ namespace Torii
 {
     public sealed partial class MainViewModel : ObservableObject
     {
-        private readonly OmamoriInstall install;
+        private readonly LazerInstance instance;
         private readonly ReleaseFeed feed;
-        private readonly ReleaseInstaller installer;
+        private readonly InstanceSetup setup;
         private readonly Func<bool> osuRunning;
         private readonly ModLibrary library;
 
         private string? installedVersion;
 
-        public MainViewModel(OmamoriInstall install, ReleaseFeed feed, ReleaseInstaller installer, Func<bool>? osuRunning = null)
+        public MainViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, Func<bool>? osuRunning = null)
         {
-            this.install = install;
+            this.instance = instance;
             this.feed = feed;
-            this.installer = installer;
-            this.osuRunning = osuRunning ?? OsuProcess.IsRunning;
-            library = new ModLibrary(install, this.osuRunning);
+            this.setup = setup;
+            this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
+            library = new ModLibrary(instance.Omamori, this.osuRunning);
 
-            DataDirectory = install.DataDirectory;
-            Warning = OsuData.LooksLikeData(install.DataDirectory) ? null : "osu! hasn't been run with this as its data folder.";
+            InstanceDirectory = instance.Directory;
             Summary = string.Empty;
 
-            refreshInstall();
+            refreshInstance();
             RefreshOsuRunning();
             RefreshMods();
         }
@@ -42,18 +41,15 @@ namespace Torii
 
         public bool HasMods => Mods.Count > 0;
 
-        /// <summary>Whether anything in the data folder may be changed right now</summary>
+        /// <summary>Whether anything in the instance may be changed right now</summary>
         public bool CanEdit => !IsBusy && !OsuRunning;
 
-        public string DataDirectory { get; }
-
-        public string? Warning { get; }
+        public string InstanceDirectory { get; }
 
         public ObservableCollection<OmamoriRelease> Releases { get; } = [];
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(InstallLabel))]
-        [NotifyCanExecuteChangedFor(nameof(UninstallCommand))]
         public partial string Summary { get; private set; }
 
         [ObservableProperty]
@@ -63,15 +59,16 @@ namespace Torii
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(UninstallCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand))]
         public partial bool IsBusy { get; private set; }
 
+        /// <summary>The instance's game, the player's own osu! doesn't count</summary>
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(UninstallCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand))]
         public partial bool OsuRunning { get; private set; }
 
-        /// <summary>Download progress, 0 to 1</summary>
+        /// <summary>Progress of the current download, 0 to 1</summary>
         [ObservableProperty]
         public partial double Progress { get; private set; }
 
@@ -82,6 +79,9 @@ namespace Torii
         {
             get
             {
+                if (!instance.IsInstalled)
+                    return "Set up";
+
                 if (installedVersion == null || SelectedRelease == null)
                     return "Install";
 
@@ -173,55 +173,52 @@ namespace Torii
 
             IsBusy = true;
             Progress = 0;
-            Status = $"Downloading Omamori {release.Version}...";
 
             try
             {
-                await installer.InstallAsync(install, release, new Progress<double>(p => Progress = p));
-                Status = $"Omamori {release.Version} is installed.";
+                await setup.SetUpAsync(instance, release, new Progress<SetupProgress>(p => showProgress(release, p)));
+                Status = $"Omamori {release.Version} is ready.";
             }
-            catch (Exception e) when (e is HttpRequestException or InvalidDataException or IOException or UnauthorizedAccessException or TaskCanceledException)
+            catch (Exception e) when (e is HttpRequestException or InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException or TaskCanceledException
+                                          or PlatformNotSupportedException)
             {
-                Status = $"Couldn't install Omamori {release.Version}. {e.Message}";
+                Status = $"Couldn't set up Omamori {release.Version}. {e.Message}";
             }
             finally
             {
                 IsBusy = false;
-                refreshInstall();
-            }
-        }
-
-        [RelayCommand(CanExecute = nameof(canUninstall))]
-        public void Uninstall()
-        {
-            try
-            {
-                OmamoriInstaller.Uninstall(install);
-                Status = "Omamori is uninstalled. Your mods and their settings were kept.";
-            }
-            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
-            {
-                Status = $"Couldn't uninstall Omamori. {e.Message}";
-            }
-            finally
-            {
-                refreshInstall();
+                refreshInstance();
+                RefreshMods();
             }
         }
 
         private bool canInstall() => SelectedRelease != null && !IsBusy && !OsuRunning;
 
-        private bool canUninstall() => install.IsInstalled && !IsBusy && !OsuRunning;
-
-        private void refreshInstall()
+        private void showProgress(OmamoriRelease release, SetupProgress progress)
         {
-            installedVersion = install.IsInstalled ? install.ReadVersion() ?? "unknown" : null;
+            // Progress<T> can deliver the last report after the setup has finished
+            if (!IsBusy)
+                return;
 
-            Summary = installedVersion switch
+            Progress = progress.Fraction;
+            Status = progress.Stage switch
             {
-                null => "Not installed",
-                "unknown" => "Installed, version unknown",
-                _ => $"Version {installedVersion} is installed",
+                SetupStage.DownloadingOmamori => $"Downloading Omamori {release.Version}...",
+                SetupStage.DownloadingOsu => "Downloading osu!...",
+                _ => "Installing...",
+            };
+        }
+
+        private void refreshInstance()
+        {
+            string? osu = instance.IsInstalled ? instance.ReadVersion() ?? "unknown version" : null;
+            installedVersion = instance.Omamori.IsInstalled ? instance.Omamori.ReadVersion() ?? "unknown" : null;
+
+            Summary = (osu, installedVersion) switch
+            {
+                (null, _) => "Not set up yet",
+                (_, null) => $"osu! {osu} without Omamori",
+                _ => $"Omamori {installedVersion} on osu! {osu}",
             };
         }
     }

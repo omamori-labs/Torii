@@ -12,12 +12,8 @@
             <TextBlock Text="Torii" FontSize="28" FontWeight="SemiBold" />
 
             <StackPanel Spacing="4">
-                <TextBlock Text="osu! data folder" Opacity="0.6" />
-                <SelectableTextBlock Text="{Binding DataDirectory}" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding Warning}"
-                           IsVisible="{Binding Warning, Converter={x:Static ObjectConverters.IsNotNull}}"
-                           Foreground="Orange"
-                           TextWrapping="Wrap" />
+                <TextBlock Text="Modded osu! folder" Opacity="0.6" />
+                <SelectableTextBlock Text="{Binding InstanceDirectory}" TextWrapping="Wrap" />
             </StackPanel>
 
             <StackPanel Spacing="8">
@@ -37,12 +33,11 @@
                         </ComboBox.ItemTemplate>
                     </ComboBox>
                     <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes="accent" />
-                    <Button Content="Uninstall" Command="{Binding UninstallCommand}" />
                 </StackPanel>
 
                 <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
 
-                <TextBlock Text="Close osu! to change anything here."
+                <TextBlock Text="Close the modded osu! to change anything here."
                            IsVisible="{Binding OsuRunning}"
                            Foreground="Orange" />
                 <TextBlock Text="{Binding Status}"

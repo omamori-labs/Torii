@@ -10,25 +10,8 @@ namespace Torii.Core
     {
         public const string PROCESS_NAME = "osu!";
 
-        public static bool IsRunning() => anyRunning(IsLazer);
-
         /// <summary>Whether the copy of the game in this folder is open. The player's own osu! doesn't count</summary>
-        public static bool IsRunningIn(string directory) => anyRunning(executable => IsIn(executable, directory));
-
-        /// <summary>Stable has the same process name on Windows. Lazer has osu.Game.dll next to it</summary>
-        internal static bool IsLazer(string? executable)
-        {
-            if (executable == null || !OperatingSystem.IsWindows())
-                return true;
-
-            return File.Exists(Path.Combine(Path.GetDirectoryName(executable) ?? string.Empty, "osu.Game.dll"));
-        }
-
-        /// <summary>A process that can't be inspected counts as being in the folder</summary>
-        internal static bool IsIn(string? executable, string directory) =>
-            executable == null || Paths.IsInside(Path.GetFullPath(directory), Path.GetFullPath(executable));
-
-        private static bool anyRunning(Func<string?, bool> matches)
+        public static bool IsRunningIn(string directory)
         {
             Process[] processes = Process.GetProcessesByName(PROCESS_NAME);
 
@@ -36,7 +19,7 @@ namespace Torii.Core
             {
                 foreach (Process process in processes)
                 {
-                    if (matchesProcess(process, matches))
+                    if (isIn(process, directory))
                         return true;
                 }
 
@@ -49,11 +32,15 @@ namespace Torii.Core
             }
         }
 
-        private static bool matchesProcess(Process process, Func<string?, bool> matches)
+        /// <summary>A process that can't be inspected counts as being in the folder</summary>
+        internal static bool IsIn(string? executable, string directory) =>
+            executable == null || Paths.IsInside(Path.GetFullPath(directory), Path.GetFullPath(executable));
+
+        private static bool isIn(Process process, string directory)
         {
             try
             {
-                return matches(process.MainModule?.FileName);
+                return IsIn(process.MainModule?.FileName, directory);
             }
             catch (InvalidOperationException)
             {

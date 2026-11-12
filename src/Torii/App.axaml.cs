@@ -16,12 +16,12 @@ namespace Torii
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // A folder on the command line is for trying Torii against a sandbox
-                string data = desktop.Args is [string given, ..] ? given : OsuData.Resolve(OsuData.DefaultDirectory());
+                // A folder on the command line is for trying Torii against another instance
+                string folder = desktop.Args is [string given, ..] ? given : LazerInstance.DefaultDirectory();
 
                 desktop.MainWindow = new MainWindow
                 {
-                    DataContext = new MainViewModel(new OmamoriInstall(data), new ReleaseFeed(http), new ReleaseInstaller(http)),
+                    DataContext = new MainViewModel(new LazerInstance(folder), new ReleaseFeed(http), new InstanceSetup(http)),
                 };
             }
 

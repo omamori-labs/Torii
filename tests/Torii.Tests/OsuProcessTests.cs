@@ -8,54 +8,36 @@ namespace Torii.Tests
     [TestFixture]
     public class OsuProcessTests
     {
-        private string directory = null!;
-        private string executable = null!;
-
-        [SetUp]
-        public void SetUp()
-        {
-            directory = Path.Combine(Path.GetTempPath(), $"torii-tests-{Guid.NewGuid():N}");
-            Directory.CreateDirectory(directory);
-
-            executable = Path.Combine(directory, "osu!.exe");
-            File.WriteAllText(executable, string.Empty);
-        }
-
-        [TearDown]
-        public void TearDown() => Directory.Delete(directory, recursive: true);
+        private static readonly string instance = Path.Combine(Path.GetTempPath(), $"torii-tests-{Guid.NewGuid():N}", "instance");
 
         [Test]
-        public void ExecutableNextToTheGameLibraryIsLazer()
+        public void GameInTheFolderIsRunningThere()
         {
-            File.WriteAllText(Path.Combine(directory, "osu.Game.dll"), string.Empty);
-
-            Assert.That(OsuProcess.IsLazer(executable), Is.True);
+            Assert.That(OsuProcess.IsIn(Path.Combine(instance, "osu!.exe"), instance), Is.True);
         }
 
         [Test]
-        [Platform("Win")]
-        public void ExecutableWithoutTheGameLibraryIsStable()
+        public void GameSomewhereElseIsNot()
         {
-            Assert.That(OsuProcess.IsLazer(executable), Is.False);
+            Assert.That(OsuProcess.IsIn(Path.Combine(Path.GetTempPath(), "osulazer", "current", "osu!.exe"), instance), Is.False);
         }
 
         [Test]
-        [Platform(Exclude = "Win")]
-        public void OutsideWindowsThereIsOnlyLazer()
+        public void FolderWithTheSamePrefixIsNotTheFolder()
         {
-            Assert.That(OsuProcess.IsLazer(executable), Is.True);
+            Assert.That(OsuProcess.IsIn(Path.Combine(instance + "-other", "osu!.exe"), instance), Is.False);
         }
 
         [Test]
-        public void ProcessThatCannotBeInspectedCountsAsLazer()
+        public void ProcessThatCannotBeInspectedCountsAsRunningThere()
         {
-            Assert.That(OsuProcess.IsLazer(null), Is.True);
+            Assert.That(OsuProcess.IsIn(null, instance), Is.True);
         }
 
         [Test]
         public void LookingForOsuNeverThrows()
         {
-            Assert.That(() => OsuProcess.IsRunning(), Throws.Nothing);
+            Assert.That(() => OsuProcess.IsRunningIn(instance), Throws.Nothing);
         }
     }
 }

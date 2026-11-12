@@ -28,7 +28,7 @@ namespace Torii.Core
         public ModLibrary(OmamoriInstall install, Func<bool>? osuRunning = null)
         {
             this.install = install;
-            this.osuRunning = osuRunning ?? OsuProcess.IsRunning;
+            this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(install.DataDirectory));
         }
 
         /// <summary>In the order Omamori discovers them. Folders without a mod.json aren't mods</summary>
