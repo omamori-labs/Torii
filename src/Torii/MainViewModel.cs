@@ -17,6 +17,7 @@ namespace Torii
         private readonly ReleaseFeed feed;
         private readonly ReleaseInstaller installer;
         private readonly Func<bool> osuRunning;
+        private readonly ModLibrary library;
 
         private string? installedVersion;
 
@@ -26,6 +27,7 @@ namespace Torii
             this.feed = feed;
             this.installer = installer;
             this.osuRunning = osuRunning ?? OsuProcess.IsRunning;
+            library = new ModLibrary(install, this.osuRunning);
 
             DataDirectory = install.DataDirectory;
             Warning = OsuData.LooksLikeData(install.DataDirectory) ? null : "osu! hasn't been run with this as its data folder.";
@@ -33,7 +35,15 @@ namespace Torii
 
             refreshInstall();
             RefreshOsuRunning();
+            RefreshMods();
         }
+
+        public ObservableCollection<ModItemViewModel> Mods { get; } = [];
+
+        public bool HasMods => Mods.Count > 0;
+
+        /// <summary>Whether anything in the data folder may be changed right now</summary>
+        public bool CanEdit => !IsBusy && !OsuRunning;
 
         public string DataDirectory { get; }
 
@@ -52,10 +62,12 @@ namespace Torii
         public partial OmamoriRelease? SelectedRelease { get; set; }
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanEdit))]
         [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(UninstallCommand))]
         public partial bool IsBusy { get; private set; }
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(CanEdit))]
         [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(UninstallCommand))]
         public partial bool OsuRunning { get; private set; }
 
@@ -86,7 +98,51 @@ namespace Torii
         }
 
         /// <summary>Called on a timer, the game can be opened or closed at any point</summary>
-        public void RefreshOsuRunning() => OsuRunning = osuRunning();
+        public void RefreshOsuRunning()
+        {
+            bool wasRunning = OsuRunning;
+            OsuRunning = osuRunning();
+
+            // The game writes the state files, so what's on screen may be stale once it closes
+            if (wasRunning && !OsuRunning)
+                RefreshMods();
+        }
+
+        /// <summary>Rereads the mods folder. Rows are updated in place when the same mods are still there</summary>
+        public void RefreshMods()
+        {
+            var mods = library.List();
+
+            if (mods.Count == Mods.Count && mods.Zip(Mods).All(pair => pair.First.Directory == pair.Second.Mod.Directory))
+            {
+                foreach ((InstalledMod mod, ModItemViewModel row) in mods.Zip(Mods))
+                    row.Mod = mod;
+
+                return;
+            }
+
+            Mods.Clear();
+            foreach (InstalledMod mod in mods)
+                Mods.Add(new ModItemViewModel(this, mod));
+
+            OnPropertyChanged(nameof(HasMods));
+        }
+
+        internal void SetEnabled(ModItemViewModel row, bool enabled)
+        {
+            try
+            {
+                library.SetEnabled(row.Mod.Manifest!.Id, enabled);
+                Status = $"{row.Label} is {(enabled ? "on" : "off")} the next time osu! starts.";
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                Status = $"Couldn't turn {row.Label} {(enabled ? "on" : "off")}. {e.Message}";
+            }
+
+            RefreshMods();
+            row.Revert();
+        }
 
         [RelayCommand]
         public async Task LoadReleasesAsync()

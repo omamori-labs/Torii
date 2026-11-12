@@ -156,6 +156,137 @@ namespace Torii.Tests
             }
         }
 
+        [Test]
+        public void ModsAreListed()
+        {
+            mod("b.plain", "Plain", author: "", capabilities: "\"Cosmetic\"");
+            mod("a.patcher", "Patcher", author: "someone", capabilities: "\"Patches\"");
+            using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, []));
+
+            MainViewModel model = create(http);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.HasMods, Is.True);
+                Assert.That(model.Mods.Select(m => m.Label), Is.EqualTo(expected_labels));
+                Assert.That(model.Mods[0].Byline, Is.EqualTo("by someone"));
+                Assert.That(model.Mods[0].Patches, Is.True);
+                Assert.That(model.Mods[1].Byline, Is.Empty);
+                Assert.That(model.Mods[1].Patches, Is.False);
+                Assert.That(model.Mods.Select(m => m.IsOn), Has.All.True);
+            }
+        }
+
+        [Test]
+        public void WithoutModsTheListIsEmpty()
+        {
+            using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, []));
+
+            Assert.That(create(http).HasMods, Is.False);
+        }
+
+        [Test]
+        public void SwitchingAModOffAndOn()
+        {
+            mod("a.mod", "Cool Mod");
+            using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, []));
+            MainViewModel model = create(http);
+            ModItemViewModel row = model.Mods[0];
+
+            row.IsOn = false;
+            bool off = row.IsOn;
+            string? offStatus = model.Status;
+
+            row.IsOn = true;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(off, Is.False);
+                Assert.That(offStatus, Is.EqualTo("Cool Mod is off the next time osu! starts."));
+                Assert.That(row.IsOn, Is.True);
+                Assert.That(new ModLibrary(install, () => false).List()[0].State, Is.EqualTo(ModState.On));
+                Assert.That(model.Mods[0], Is.SameAs(row));
+            }
+        }
+
+        [Test]
+        public void SwitchingAModWhileOsuRunsIsRefusedAndTheSwitchGoesBack()
+        {
+            mod("a.mod", "Cool Mod");
+            using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, []));
+            MainViewModel model = create(http);
+            ModItemViewModel row = model.Mods[0];
+            bool reverted = false;
+            row.PropertyChanged += (_, e) => reverted |= e.PropertyName == nameof(ModItemViewModel.IsOn);
+
+            osuRunning = true;
+            row.IsOn = false;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(row.IsOn, Is.True);
+                Assert.That(reverted, Is.True);
+                Assert.That(model.Status, Does.StartWith("Couldn't turn Cool Mod off."));
+                Assert.That(File.Exists(install.SettingsFile), Is.False);
+            }
+        }
+
+        [Test]
+        public void BrokenModCannotBeSwitched()
+        {
+            string folder = Path.Combine(install.ModsDirectory, "broken");
+            Directory.CreateDirectory(folder);
+            File.WriteAllText(Path.Combine(folder, "mod.json"), "not json");
+            using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, []));
+
+            ModItemViewModel row = create(http).Mods[0];
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(row.CanToggle, Is.False);
+                Assert.That(row.IsOn, Is.False);
+                Assert.That(row.Label, Is.EqualTo("broken"));
+                Assert.That(row.Problem, Is.Not.Empty);
+            }
+        }
+
+        [Test]
+        public void ModsAddedByHandShowUpOnRefresh()
+        {
+            using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, []));
+            MainViewModel model = create(http);
+
+            mod("a.mod", "Cool Mod");
+            model.RefreshMods();
+
+            Assert.That(model.Mods, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void EditingIsOffWhileOsuRuns()
+        {
+            using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, []));
+            MainViewModel model = create(http);
+
+            osuRunning = true;
+            model.RefreshOsuRunning();
+
+            Assert.That(model.CanEdit, Is.False);
+        }
+
+        private static readonly string[] expected_labels = ["Patcher", "Plain"];
+
+        private void mod(string id, string name, string author = "", string capabilities = "\"Cosmetic\"")
+        {
+            string folder = Path.Combine(install.ModsDirectory, id);
+            Directory.CreateDirectory(folder);
+
+            File.WriteAllText(Path.Combine(folder, "Mod.dll"), string.Empty);
+            File.WriteAllText(Path.Combine(folder, "mod.json"), $$"""
+                { "id": "{{id}}", "name": "{{name}}", "version": "1.0.0", "author": "{{author}}", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": [{{capabilities}}] }
+                """);
+        }
+
         private MainViewModel create(HttpClient http) =>
             new MainViewModel(install, new ReleaseFeed(http), new ReleaseInstaller(http, directory), () => osuRunning);
 

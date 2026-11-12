@@ -5,48 +5,97 @@
         x:Class="Torii.MainWindow"
         x:DataType="local:MainViewModel"
         Title="Torii"
-        Width="640" Height="420"
-        MinWidth="480" MinHeight="360">
-    <StackPanel Margin="24" Spacing="20">
-        <TextBlock Text="Torii" FontSize="28" FontWeight="SemiBold" />
+        Width="680" Height="640"
+        MinWidth="480" MinHeight="420">
+    <DockPanel Margin="24">
+        <StackPanel DockPanel.Dock="Top" Spacing="20" Margin="0,0,0,20">
+            <TextBlock Text="Torii" FontSize="28" FontWeight="SemiBold" />
 
-        <StackPanel Spacing="4">
-            <TextBlock Text="osu! data folder" Opacity="0.6" />
-            <SelectableTextBlock Text="{Binding DataDirectory}" TextWrapping="Wrap" />
-            <TextBlock Text="{Binding Warning}"
-                       IsVisible="{Binding Warning, Converter={x:Static ObjectConverters.IsNotNull}}"
-                       Foreground="Orange"
-                       TextWrapping="Wrap" />
-        </StackPanel>
-
-        <StackPanel Spacing="8">
-            <TextBlock Text="Omamori" Opacity="0.6" />
-            <TextBlock Text="{Binding Summary}" />
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <ComboBox ItemsSource="{Binding Releases}"
-                          SelectedItem="{Binding SelectedRelease}"
-                          IsEnabled="{Binding !IsBusy}"
-                          MinWidth="200"
-                          PlaceholderText="No releases">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="core:OmamoriRelease">
-                            <TextBlock Text="{Binding Version}" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes="accent" />
-                <Button Content="Uninstall" Command="{Binding UninstallCommand}" />
+            <StackPanel Spacing="4">
+                <TextBlock Text="osu! data folder" Opacity="0.6" />
+                <SelectableTextBlock Text="{Binding DataDirectory}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding Warning}"
+                           IsVisible="{Binding Warning, Converter={x:Static ObjectConverters.IsNotNull}}"
+                           Foreground="Orange"
+                           TextWrapping="Wrap" />
             </StackPanel>
 
-            <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
+            <StackPanel Spacing="8">
+                <TextBlock Text="Omamori" Opacity="0.6" />
+                <TextBlock Text="{Binding Summary}" />
 
-            <TextBlock Text="Close osu! to install, update or uninstall."
-                       IsVisible="{Binding OsuRunning}"
-                       Foreground="Orange" />
-            <TextBlock Text="{Binding Status}"
-                       IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}"
-                       TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <ComboBox ItemsSource="{Binding Releases}"
+                              SelectedItem="{Binding SelectedRelease}"
+                              IsEnabled="{Binding !IsBusy}"
+                              MinWidth="200"
+                              PlaceholderText="No releases">
+                        <ComboBox.ItemTemplate>
+                            <DataTemplate x:DataType="core:OmamoriRelease">
+                                <TextBlock Text="{Binding Version}" />
+                            </DataTemplate>
+                        </ComboBox.ItemTemplate>
+                    </ComboBox>
+                    <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes="accent" />
+                    <Button Content="Uninstall" Command="{Binding UninstallCommand}" />
+                </StackPanel>
+
+                <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
+
+                <TextBlock Text="Close osu! to change anything here."
+                           IsVisible="{Binding OsuRunning}"
+                           Foreground="Orange" />
+                <TextBlock Text="{Binding Status}"
+                           IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+
+            <TextBlock Text="Mods" Opacity="0.6" />
         </StackPanel>
-    </StackPanel>
+
+        <Panel>
+            <TextBlock Text="No mods installed." IsVisible="{Binding !HasMods}" Opacity="0.6" />
+
+            <ScrollViewer IsVisible="{Binding HasMods}">
+                <ItemsControl ItemsSource="{Binding Mods}" IsEnabled="{Binding CanEdit}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="local:ModItemViewModel">
+                            <Border Padding="14,10" Margin="0,0,0,8" CornerRadius="6" Background="#16FFFFFF">
+                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="16">
+                                    <StackPanel Spacing="3">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Version}" Opacity="0.6" />
+                                            <Border IsVisible="{Binding Patches}"
+                                                    Padding="6,1" CornerRadius="4"
+                                                    BorderBrush="Orange" BorderThickness="1"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="Patches osu!" FontSize="11" Foreground="Orange" />
+                                            </Border>
+                                        </StackPanel>
+                                        <TextBlock Text="{Binding Byline}"
+                                                   IsVisible="{Binding Byline, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                   Opacity="0.6" FontSize="12" />
+                                        <TextBlock Text="{Binding Description}"
+                                                   IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding Problem}"
+                                                   IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                   Foreground="Orange"
+                                                   TextWrapping="Wrap" />
+                                    </StackPanel>
+
+                                    <ToggleSwitch Grid.Column="1"
+                                                  IsChecked="{Binding IsOn}"
+                                                  IsEnabled="{Binding CanToggle}"
+                                                  OnContent="On" OffContent="Off"
+                                                  VerticalAlignment="Center" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Panel>
+    </DockPanel>
 </Window>
