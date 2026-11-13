@@ -1,5 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- turns the trim warnings on here too, the app is published trimmed -->
+  <PropertyGroup>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+
   <ItemGroup>
     <InternalsVisibleTo Include="Torii.Tests" />
   </ItemGroup>

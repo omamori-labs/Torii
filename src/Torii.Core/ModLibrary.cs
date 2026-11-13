@@ -72,7 +72,7 @@ namespace Torii.Core
                 disabled.Remove(match);
 
             if (!enabled)
-                disabled.Add(id);
+                disabled.Add((JsonNode)id);
 
             writeState(install.SettingsFile, settings);
         }
