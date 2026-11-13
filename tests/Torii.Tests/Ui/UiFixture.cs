@@ -1,0 +1,74 @@
+using System;
+using System.IO;
+using System.Net.Http;
+using Torii.Core;
+using Torii.Core.Instances;
+using Torii.Core.Lazer;
+using Torii.Core.Library;
+using Torii.Core.Releases;
+using Torii.ViewModels;
+
+namespace Torii.Tests
+{
+    internal sealed class UiFixture : IDisposable
+    {
+        private const string lazer = "2026.1005.0-lazer";
+
+        private readonly RouteHandler handler = new RouteHandler();
+        private readonly HttpClient http;
+        private readonly SharedLibrary library;
+
+        public UiFixture()
+        {
+            Root = Path.Combine(Path.GetTempPath(), $"torii-tests-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(Root);
+
+            http = new HttpClient(handler);
+            Store = new InstanceStore(Path.Combine(Root, "instances"), Path.Combine(Root, "old-instance"), _ => false);
+            library = new SharedLibrary(Path.Combine(Root, "library"), (_, _) => true, () => false, _ => null);
+        }
+
+        public string Root { get; }
+
+        public InstanceStore Store { get; }
+
+        public MainViewModel CreateShell(LazerInstance? given = null) => new MainViewModel(Store, makeInstance, given);
+
+        public static void PlaceGame(LazerInstance instance)
+        {
+            Directory.CreateDirectory(instance.Directory);
+
+            foreach (string file in new[] { instance.Executable, Path.Combine(instance.Directory, "osu.Game.dll"), instance.PortableMarker })
+                File.WriteAllText(file, string.Empty);
+
+            File.WriteAllText(Path.Combine(instance.Directory, "sq.version"), $"<package><metadata><version>{lazer}</version></metadata></package>");
+        }
+
+        public static void AddMod(LazerInstance instance, string id)
+        {
+            string folder = Path.Combine(instance.Omamori.ModsDirectory, id);
+            Directory.CreateDirectory(folder);
+
+            File.WriteAllText(Path.Combine(folder, "Mod.dll"), string.Empty);
+            File.WriteAllText(Path.Combine(folder, "mod.json"), $$"""
+                { "id": "{{id}}", "name": "{{id}}", "version": "1.0.0", "author": "", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": ["Cosmetic"] }
+                """);
+        }
+
+        public void Dispose()
+        {
+            http.Dispose();
+            handler.Dispose();
+            Directory.Delete(Root, recursive: true);
+        }
+
+        private InstanceViewModel makeInstance(LazerInstance instance) => new InstanceViewModel(
+            instance,
+            new ReleaseFeed(http),
+            new InstanceSetup(http, Root, _ => false),
+            library,
+            new LibrarySeed(() => false, () => null, () => null),
+            () => false,
+            new GameLauncher(_ => { }));
+    }
+}

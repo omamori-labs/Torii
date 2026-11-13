@@ -6,7 +6,7 @@
              x:DataType="vm:InstanceViewModel">
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,16">
-            <StackPanel Orientation="Horizontal" Spacing="8">
+            <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8">
                 <ComboBox ItemsSource="{Binding Releases}"
                           SelectedItem="{Binding SelectedRelease}"
                           IsEnabled="{Binding !IsBusy}"
@@ -22,7 +22,7 @@
                 <Button Content="Play" Command="{Binding PlayCommand}" IsVisible="{Binding IsSetUp}" Classes="accent" />
                 <Button Content="Add mod" Command="{Binding AddModCommand}" IsVisible="{Binding IsSetUp}" />
                 <Button Content="Import from osu!" Command="{Binding ImportCommand}" IsVisible="{Binding ImportAvailable}" />
-            </StackPanel>
+            </WrapPanel>
 
             <ProgressBar Value="{Binding Progress}" Maximum="1" IsIndeterminate="{Binding IsIndeterminate}" IsVisible="{Binding IsBusy}" />
             <TextBlock Text="{Binding Status}"

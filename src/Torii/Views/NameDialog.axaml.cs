@@ -15,7 +15,7 @@ namespace Torii.Views
         {
         }
 
-        private NameDialog(NamePrompt prompt)
+        public NameDialog(NamePrompt prompt)
         {
             validate = prompt.Validate;
 

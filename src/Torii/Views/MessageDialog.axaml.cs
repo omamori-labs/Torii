@@ -19,12 +19,12 @@ namespace Torii.Views
             };
         }
 
-        public static Task ShowAsync(Window owner, string message)
+        public MessageDialog(string message)
+            : this()
         {
-            var dialog = new MessageDialog();
-            dialog.MessageText.Text = message;
-
-            return dialog.ShowDialog(owner);
+            MessageText.Text = message;
         }
+
+        public static Task ShowAsync(Window owner, string message) => new MessageDialog(message).ShowDialog(owner);
     }
 }
