@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core.Instances;
 using Torii.Core.Lazer;
@@ -10,6 +11,8 @@ namespace Torii.Tests
     [TestFixture]
     public class InstanceStoreTests
     {
+        private const string cached_version = "2026.1100.0-lazer";
+
         private static readonly string[] sorted_names = ["alpha", "Beta", "gamma"];
 
         private static readonly string[] only_cosmetic = ["Cosmetic mods"];
@@ -19,6 +22,8 @@ namespace Torii.Tests
         private static readonly string[] only_after = ["after"];
 
         private static readonly string[] only_renamed = ["renamed"];
+
+        private static readonly string[] game_files = ["osu.Game.dll", "sq.version"];
 
         private static readonly string[] alpha_gamma_zzz = ["alpha", "gamma", "zzz"];
 
@@ -40,6 +45,47 @@ namespace Torii.Tests
 
         [TearDown]
         public void TearDown() => Directory.Delete(directory, recursive: true);
+
+        [Test]
+        public async Task GameVersionStaysCachedUntilTheLastInstanceUsingItIsDeleted()
+        {
+            var cache = new GameCache(Path.Combine(directory, "games"));
+            var cached = new InstanceStore(Path.Combine(directory, "instances"), legacy, _ => false, cache);
+            LazerInstance first = cached.Create("first");
+            LazerInstance second = cached.Create("second");
+            await cache.InstallAsync(cached_version, first, fillGame(cached_version));
+            await cache.InstallAsync(cached_version, second, fillGame(cached_version));
+
+            cached.Delete(first);
+            bool afterFirst = cache.Has(cached_version);
+
+            cached.Delete(second);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(afterFirst, Is.True);
+                Assert.That(cache.Has(cached_version), Is.False);
+            }
+        }
+
+        [Test]
+        public async Task DeletingAnInstanceKeepsTheVersionAnotherInstanceUses()
+        {
+            var cache = new GameCache(Path.Combine(directory, "games"));
+            var cached = new InstanceStore(Path.Combine(directory, "instances"), legacy, _ => false, cache);
+            LazerInstance old = cached.Create("old");
+            LazerInstance current = cached.Create("current");
+            await cache.InstallAsync("2026.1005.0-lazer", old, fillGame("2026.1005.0-lazer"));
+            await cache.InstallAsync(cached_version, current, fillGame(cached_version));
+
+            cached.Delete(old);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(cache.Has("2026.1005.0-lazer"), Is.False);
+                Assert.That(cache.Has(cached_version), Is.True);
+            }
+        }
 
         [Test]
         public void ThereAreNoInstancesToStartWith()
@@ -352,5 +398,14 @@ namespace Torii.Tests
                 Assert.That(store.List(), Has.Count.EqualTo(1));
             }
         }
+
+        private static Func<string, Task> fillGame(string version) => staging =>
+        {
+            File.WriteAllText(Path.Combine(staging, "osu.Game.dll"), string.Empty);
+            File.WriteAllText(Path.Combine(staging, "sq.version"), $"<package><metadata><version>{version}</version></metadata></package>");
+            File.WriteAllLines(new LazerInstance(staging).GameFilesList, game_files);
+
+            return Task.CompletedTask;
+        };
     }
 }

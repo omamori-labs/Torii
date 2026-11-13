@@ -151,6 +151,44 @@ namespace Torii.Tests
         }
 
         [Test]
+        public async Task SecondInstanceOfAVersionIsInstalledFromTheCacheWithoutDownloading()
+        {
+            byte[] bytes = File.ReadAllBytes(package("2026.1005.0-lazer"));
+            var info = new LazerPackage("2026.1005.0-lazer", download, Fixtures.Sha256(bytes), bytes.Length);
+            var cache = new GameCache(Path.Combine(directory, "games"));
+            var second = new LazerInstance(Path.Combine(directory, "second"));
+
+            using (var http = new HttpClient(new StubHandler(HttpStatusCode.OK, bytes)))
+                await new LazerInstaller(http, downloads, cache).InstallAsync(instance, info);
+
+            using var offline = new HttpClient(new StubHandler(HttpStatusCode.InternalServerError, []));
+            await new LazerInstaller(offline, downloads, cache).InstallAsync(second, info);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(instance.IsInstalled, Is.True);
+                Assert.That(second.IsInstalled, Is.True);
+                Assert.That(second.ReadVersion(), Is.EqualTo("2026.1005.0-lazer"));
+                Assert.That(File.Exists(Path.Combine(second.Directory, "runtimes", "win-x64", "native", "bass.dll")), Is.True);
+                Assert.That(Directory.EnumerateFileSystemEntries(downloads), Is.Empty);
+            }
+        }
+
+        [Test]
+        public async Task CachedInstallStillRefusesToDowngrade()
+        {
+            LazerInstaller.InstallFromPackage(instance, package("2026.1101.0-lazer"));
+            using var handler = new StubHandler(HttpStatusCode.OK, []);
+            using var http = new HttpClient(handler);
+            var installer = new LazerInstaller(http, downloads, new GameCache(Path.Combine(directory, "games")));
+            var older = new LazerPackage("2026.1005.0-lazer", download, new string('0', 64), 0);
+
+            await Assert.ThatAsync(() => installer.InstallAsync(instance, older), Throws.InvalidOperationException);
+
+            Assert.That(handler.Requested, Is.Null);
+        }
+
+        [Test]
         public void DownloadThatDoesNotMatchItsChecksumIsNotInstalled()
         {
             byte[] bytes = File.ReadAllBytes(package("2026.1005.0-lazer"));

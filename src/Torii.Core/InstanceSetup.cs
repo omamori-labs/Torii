@@ -16,11 +16,11 @@ namespace Torii.Core
         private readonly LazerInstaller lazerInstaller;
         private readonly Func<LazerInstance, bool> isRunning;
 
-        public InstanceSetup(HttpClient http, string? temporaryDirectory = null, Func<LazerInstance, bool>? isRunning = null)
+        public InstanceSetup(HttpClient http, string? temporaryDirectory = null, Func<LazerInstance, bool>? isRunning = null, GameCache? cache = null)
         {
             releases = new ReleaseInstaller(http, temporaryDirectory);
             lazerFeed = new LazerFeed(http);
-            lazerInstaller = new LazerInstaller(http, temporaryDirectory);
+            lazerInstaller = new LazerInstaller(http, temporaryDirectory, cache);
             this.isRunning = isRunning ?? (instance => OsuProcess.IsRunningIn(instance.Directory));
         }
 

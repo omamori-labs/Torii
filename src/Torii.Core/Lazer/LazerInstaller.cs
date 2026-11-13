@@ -16,17 +16,27 @@ namespace Torii.Core.Lazer
 
         private readonly HttpClient http;
         private readonly string temporaryDirectory;
+        private readonly GameCache? cache;
 
-        public LazerInstaller(HttpClient http, string? temporaryDirectory = null)
+        public LazerInstaller(HttpClient http, string? temporaryDirectory = null, GameCache? cache = null)
         {
             this.http = http;
             this.temporaryDirectory = temporaryDirectory ?? Path.GetTempPath();
+            this.cache = cache;
         }
 
         public async Task InstallAsync(LazerInstance instance, LazerPackage package, IProgress<double>? progress = null, CancellationToken cancellation = default)
         {
             refuseDowngrade(instance, package.Version);
 
+            if (cache == null)
+                await downloadAsync(package, progress, file => InstallFromPackage(instance, file, temporaryDirectory), cancellation).ConfigureAwait(false);
+            else
+                await cache.InstallAsync(package.Version, instance, staging => downloadAsync(package, progress, file => InstallFromPackage(new LazerInstance(staging), file, temporaryDirectory), cancellation)).ConfigureAwait(false);
+        }
+
+        private async Task downloadAsync(LazerPackage package, IProgress<double>? progress, Action<string> install, CancellationToken cancellation)
+        {
             string file = Path.Combine(temporaryDirectory, $"torii-{Guid.NewGuid():N}.nupkg");
 
             try
@@ -36,7 +46,7 @@ namespace Torii.Core.Lazer
                 if (!string.Equals(hash, package.Sha256, StringComparison.Ordinal))
                     throw new InvalidDataException($"The download of osu! {package.Version} doesn't match its checksum.");
 
-                InstallFromPackage(instance, file, temporaryDirectory);
+                install(file);
             }
             finally
             {

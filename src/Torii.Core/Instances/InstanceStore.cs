@@ -21,12 +21,14 @@ namespace Torii.Core.Instances
 
         private readonly string? legacy;
         private readonly Func<LazerInstance, bool> isRunning;
+        private readonly GameCache? cache;
 
-        public InstanceStore(string directory, string? legacy = null, Func<LazerInstance, bool>? isRunning = null)
+        public InstanceStore(string directory, string? legacy = null, Func<LazerInstance, bool>? isRunning = null, GameCache? cache = null)
         {
             Root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
             this.legacy = legacy == null ? null : Path.TrimEndingDirectorySeparator(Path.GetFullPath(legacy));
             this.isRunning = isRunning ?? (instance => OsuProcess.IsRunningIn(instance.Directory));
+            this.cache = cache;
         }
 
         public string Root { get; }
@@ -125,6 +127,8 @@ namespace Torii.Core.Instances
                 throw new InvalidOperationException("Close osu! in this instance first.");
 
             Directory.Delete(instance.Directory, recursive: true);
+
+            cache?.Prune(List().Select(other => other.ReadVersion()).OfType<string>());
         }
 
         public bool Manages(LazerInstance instance) =>

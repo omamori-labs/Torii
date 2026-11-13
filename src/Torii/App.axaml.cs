@@ -29,10 +29,11 @@ namespace Torii
                 LazerInstance? given = desktop.Args is [string folder, ..] ? new LazerInstance(folder) : null;
 
                 var feed = new ReleaseFeed(http);
-                var setup = new InstanceSetup(http);
+                var games = new GameCache(GameCache.DefaultDirectory());
+                var setup = new InstanceSetup(http, cache: games);
                 var library = new SharedLibrary(SharedLibrary.DefaultDirectory(), ElevatedLink.Request);
                 var seed = new LibrarySeed();
-                var store = new InstanceStore(InstanceStore.DefaultDirectory(), LazerInstance.DefaultDirectory());
+                var store = new InstanceStore(InstanceStore.DefaultDirectory(), LazerInstance.DefaultDirectory(), cache: games);
 
                 var settings = new SettingsStore(SettingsStore.DefaultFile());
                 AppSettings current = settings.Load();
