@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -163,7 +162,7 @@ namespace Torii.Tests
         [Test]
         public async Task ProgressGoesThroughTheStagesInOrder()
         {
-            var progress = new RecordingProgress();
+            var progress = new RecordingProgress<SetupProgress>();
 
             await setup().SetUpAsync(instance, serveOmamori("1.0.0", old_lazer), progress);
 
@@ -202,13 +201,6 @@ namespace Torii.Tests
 
             handler.Add(download, package);
             handler.Add(LazerFeed.ReleaseUri(version), Fixtures.LazerRelease(version, package, download));
-        }
-
-        private sealed class RecordingProgress : IProgress<SetupProgress>
-        {
-            public List<SetupProgress> Reported { get; } = [];
-
-            public void Report(SetupProgress value) => Reported.Add(value);
         }
     }
 }

@@ -1,9 +1,8 @@
 using System;
 using System.IO;
-using System.IO.Compression;
+using System.Linq;
 using System.Net;
 using System.Net.Http;
-using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core;
@@ -142,7 +141,7 @@ namespace Torii.Tests
             byte[] bytes = File.ReadAllBytes(package("2026.1005.0-lazer"));
             using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, bytes));
 
-            await new LazerInstaller(http, downloads).InstallAsync(instance, new LazerPackage("2026.1005.0-lazer", download, sha256(bytes), bytes.Length));
+            await new LazerInstaller(http, downloads).InstallAsync(instance, new LazerPackage("2026.1005.0-lazer", download, Fixtures.Sha256(bytes), bytes.Length));
 
             using (Assert.EnterMultipleScope())
             {
@@ -195,51 +194,11 @@ namespace Torii.Tests
             Assert.That(Math.Sign(LazerVersions.Compare(a, b)), Is.EqualTo(expected));
         }
 
-        private static string sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+        private string package(string version, params string[] extraEntries) =>
+            Fixtures.File(directory, "nupkg", Fixtures.LazerPackage(version, extraEntries));
 
-        // Same layout as a Velopack package
-        private string package(string version, params string[] extraEntries)
-        {
-            string path = Path.Combine(directory, $"{Guid.NewGuid():N}.nupkg");
+        private string zip(params string[] entries) =>
+            Fixtures.ZipFile(directory, "nupkg", [.. entries.Select(name => (name, "x"u8.ToArray()))]);
 
-            using ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create);
-
-            write(archive, "osulazer.nuspec", "metadata");
-            write(archive, "lib/app/osu%21.exe", "exe");
-            write(archive, "lib/app/osu.Game.dll", "dll");
-            write(archive, "lib/app/runtimes/win-x64/native/bass.dll", "dll");
-            write(archive, "lib/app/sq.version", $"""
-                <?xml version="1.0" encoding="utf-8"?>
-                <package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
-                  <metadata>
-                    <id>osulazer</id>
-                    <version>{version}</version>
-                  </metadata>
-                </package>
-                """);
-
-            foreach (string entry in extraEntries)
-                write(archive, entry, "extra");
-
-            return path;
-        }
-
-        private string zip(params string[] entries)
-        {
-            string path = Path.Combine(directory, $"{Guid.NewGuid():N}.nupkg");
-
-            using ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create);
-
-            foreach (string entry in entries)
-                write(archive, entry, "x");
-
-            return path;
-        }
-
-        private static void write(ZipArchive archive, string name, string content)
-        {
-            using var writer = new StreamWriter(archive.CreateEntry(name).Open());
-            writer.Write(content);
-        }
     }
 }

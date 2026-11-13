@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Http;
@@ -49,7 +48,7 @@ namespace Torii.Tests
         public async Task ProgressEndsAtOneAndNeverGoesBack()
         {
             using var http = new HttpClient(new StubHandler(HttpStatusCode.OK, zip));
-            var progress = new RecordingProgress();
+            var progress = new RecordingProgress<double>();
 
             await new ReleaseInstaller(http, downloads).DownloadAsync(release(Fixtures.Sha256(zip)), progress);
 
@@ -117,13 +116,5 @@ namespace Torii.Tests
         }
 
         private static OmamoriRelease release(string? hash) => new OmamoriRelease("1.0.0", false, download, hash, 0, null);
-
-        // Progress<T> loses the order
-        private sealed class RecordingProgress : IProgress<double>
-        {
-            public List<double> Reported { get; } = [];
-
-            public void Report(double value) => Reported.Add(value);
-        }
     }
 }

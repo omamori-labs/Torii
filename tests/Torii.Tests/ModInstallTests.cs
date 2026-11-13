@@ -1,7 +1,7 @@
 using System;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using NUnit.Framework;
 using Torii.Core;
 
@@ -292,19 +292,7 @@ namespace Torii.Tests
             }
             """;
 
-        private string zip(params (string Name, string Content)[] entries)
-        {
-            string path = Path.Combine(directory, $"{Guid.NewGuid():N}.zip");
-
-            using ZipArchive archive = ZipFile.Open(path, ZipArchiveMode.Create);
-
-            foreach ((string name, string content) in entries)
-            {
-                using var writer = new StreamWriter(archive.CreateEntry(name).Open());
-                writer.Write(content);
-            }
-
-            return path;
-        }
+        private string zip(params (string Name, string Content)[] entries) =>
+            Fixtures.ZipFile(directory, "zip", [.. entries.Select(e => (e.Name, Encoding.UTF8.GetBytes(e.Content)))]);
     }
 }

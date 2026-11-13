@@ -130,16 +130,7 @@ namespace Torii.Tests
             Assert.That(() => LazerInstaller.InstallFromPackage(instance, package(), work), Throws.InstanceOf<PlatformNotSupportedException>());
         }
 
-        private string package()
-        {
-            string path = Path.Combine(directory, $"{Guid.NewGuid():N}.nupkg");
-
-            File.WriteAllBytes(path, Fixtures.Zip(
-                ("osulazer.nuspec", "metadata"u8.ToArray()),
-                ("lib/app/osu.AppImage", "appimage"u8.ToArray())));
-
-            return path;
-        }
+        private string package() => Fixtures.ZipFile(directory, "nupkg", ("osulazer.nuspec", "metadata"u8.ToArray()), ("lib/app/osu.AppImage", "appimage"u8.ToArray()));
 
         // Stands in for running the AppImage with --appimage-extract
         private static Action<string, string> unpacking(string version, params string[] extraFiles) => (_, folder) =>
