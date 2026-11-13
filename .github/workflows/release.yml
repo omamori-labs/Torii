@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   release:
+    # vpk builds the linux AppImage from windows too, so one job makes both
     runs-on: windows-latest
 
     permissions:
@@ -29,7 +30,9 @@ jobs:
         run: dotnet test Torii.slnx -c Release
 
       - name: publish
-        run: dotnet publish src/Torii/Torii.csproj -c Release -r win-x64 --self-contained -o artifacts/publish/win-x64
+        run: |
+          dotnet publish src/Torii/Torii.csproj -c Release -r win-x64 --self-contained -o artifacts/publish/win-x64
+          dotnet publish src/Torii/Torii.csproj -c Release -r linux-x64 --self-contained -o artifacts/publish/linux-x64
 
       # a lightweight tag on the wrong commit builds a different version than the tag says
       - name: check the version
@@ -53,14 +56,23 @@ jobs:
           REPO: https://github.com/${{ github.repository }}
         run: |
           dotnet tool install -g vpk --version 1.2.161
+
           $pre = if ($env:VERSION.Contains("-")) { @("--pre") } else { @() }
+          $github = @("--repoUrl", $env:REPO, "--token", $env:GH_TOKEN, "--outputDir", "artifacts/releases")
+          $app = @("--packId", "omamori.Torii", "--packTitle", "Torii", "--packAuthors", "catforgor", "--packVersion", $env:VERSION, "--outputDir", "artifacts/releases")
 
           # the last release is what deltas are built against, the first release has none
-          vpk download github --repoUrl $env:REPO --token $env:GH_TOKEN --outputDir artifacts/releases @pre
-          if ($LASTEXITCODE -ne 0) { Write-Warning "no earlier release to build a delta from" }
+          vpk download github @github --channel win @pre
+          if ($LASTEXITCODE -ne 0) { Write-Warning "no earlier windows release to build a delta from" }
+          vpk download github @github --channel linux @pre
+          if ($LASTEXITCODE -ne 0) { Write-Warning "no earlier linux release to build a delta from" }
 
-          vpk pack --packId omamori.Torii --packTitle Torii --packAuthors catforgor --packVersion $env:VERSION --packDir artifacts/publish/win-x64 --mainExe Torii.exe --icon src/Torii/Assets/torii.ico --outputDir artifacts/releases
-          if ($LASTEXITCODE -ne 0) { throw "vpk pack failed" }
+          vpk pack @app --runtime win-x64 --packDir artifacts/publish/win-x64 --mainExe Torii.exe --icon src/Torii/Assets/torii.ico
+          if ($LASTEXITCODE -ne 0) { throw "packing for windows failed" }
+          vpk "[linux]" pack @app --runtime linux-x64 --packDir artifacts/publish/linux-x64 --mainExe Torii --icon src/Torii/Assets/torii.png
+          if ($LASTEXITCODE -ne 0) { throw "packing for linux failed" }
 
-          vpk upload github --repoUrl $env:REPO --token $env:GH_TOKEN --outputDir artifacts/releases --publish --releaseName "Torii $env:VERSION" --tag $env:TAG @pre
-          if ($LASTEXITCODE -ne 0) { throw "vpk upload failed" }
+          vpk upload github @github --channel win --publish --releaseName "Torii $env:VERSION" --tag $env:TAG @pre
+          if ($LASTEXITCODE -ne 0) { throw "uploading the windows files failed" }
+          vpk upload github @github --channel linux --publish --merge --releaseName "Torii $env:VERSION" --tag $env:TAG @pre
+          if ($LASTEXITCODE -ne 0) { throw "uploading the linux files failed" }
