@@ -13,23 +13,9 @@
             <Button DockPanel.Dock="Top"
                     Content="New instance"
                     Command="{Binding NewInstanceCommand}"
-                    IsVisible="{Binding !IsNaming}"
                     HorizontalAlignment="Stretch"
                     HorizontalContentAlignment="Center"
                     Margin="0,0,0,8" />
-
-            <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,8" IsVisible="{Binding IsNaming}">
-                <TextBox x:Name="NewNameBox" Text="{Binding NewName}" PlaceholderText="Name" MaxLength="50">
-                    <TextBox.KeyBindings>
-                        <KeyBinding Gesture="Enter" Command="{Binding CreateInstanceCommand}" />
-                        <KeyBinding Gesture="Escape" Command="{Binding CancelNewCommand}" />
-                    </TextBox.KeyBindings>
-                </TextBox>
-                <TextBlock Text="{Binding NewNameProblem}"
-                           IsVisible="{Binding NewNameProblem, Converter={x:Static ObjectConverters.IsNotNull}}"
-                           Foreground="Orange"
-                           TextWrapping="Wrap" />
-            </StackPanel>
 
             <ListBox ItemsSource="{Binding Instances}" SelectedItem="{Binding Selected}">
                 <ListBox.ItemTemplate>

@@ -21,7 +21,6 @@ namespace Torii.ViewModels
             this.store = store;
             this.createInstance = createInstance;
 
-            NewName = string.Empty;
             Instances.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasInstances));
 
             foreach (LazerInstance instance in store.List())
@@ -43,20 +42,11 @@ namespace Torii.ViewModels
 
         public Func<string, Task>? ShowProblem { get; set; }
 
+        public Func<Func<string, string?>, Task<string?>>? AskName { get; set; }
+
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
         public partial InstanceViewModel? Selected { get; set; }
-
-        [ObservableProperty]
-        public partial bool IsNaming { get; private set; }
-
-        [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(CreateInstanceCommand))]
-        public partial string NewName { get; set; }
-
-        [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(CreateInstanceCommand))]
-        public partial string? NewNameProblem { get; private set; }
 
         public async Task RefreshAsync()
         {
@@ -71,34 +61,20 @@ namespace Torii.ViewModels
         }
 
         [RelayCommand]
-        public void NewInstance()
+        public async Task NewInstanceAsync()
         {
-            NewName = string.Empty;
-            IsNaming = true;
-        }
+            if (AskName == null || await AskName(store.Validate) is not string name)
+                return;
 
-        [RelayCommand]
-        public void CancelNew()
-        {
-            IsNaming = false;
-            NewName = string.Empty;
-        }
-
-        [RelayCommand(CanExecute = nameof(canCreate))]
-        public void CreateInstance()
-        {
             try
             {
-                InstanceViewModel created = wrap(store.Create(NewName));
+                InstanceViewModel created = wrap(store.Create(name));
                 insert(created);
                 Selected = created;
-
-                IsNaming = false;
-                NewName = string.Empty;
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                NewNameProblem = e.Message;
+                await askProblem($"Couldn't create {name}. {e.Message}");
             }
         }
 
@@ -123,8 +99,6 @@ namespace Torii.ViewModels
             Selected = Instances.Count == 0 ? null : Instances[Math.Min(index, Instances.Count - 1)];
         }
 
-        partial void OnNewNameChanged(string value) => NewNameProblem = value.Trim().Length == 0 ? null : store.Validate(value);
-
         partial void OnSelectedChanged(InstanceViewModel? oldValue, InstanceViewModel? newValue)
         {
             if (oldValue != null)
@@ -139,8 +113,6 @@ namespace Torii.ViewModels
 
         private static bool sameFolder(LazerInstance a, LazerInstance b) =>
             string.Equals(a.Directory, b.Directory, StringComparison.OrdinalIgnoreCase);
-
-        private bool canCreate() => NewName.Trim().Length > 0 && NewNameProblem == null;
 
         private bool canDelete() => Selected != null && store.Manages(Selected.Instance) && !Selected.IsBusy && !Selected.OsuRunning;
 

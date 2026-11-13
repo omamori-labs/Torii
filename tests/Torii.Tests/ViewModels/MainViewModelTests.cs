@@ -116,88 +116,85 @@ namespace Torii.Tests
         }
 
         [Test]
-        public void NewInstanceIsNamedCreatedListedInOrderAndSelected()
+        public async Task NewInstanceIsNamedCreatedListedInOrderAndSelected()
         {
             store.Create("alpha");
             store.Create("zed");
             MainViewModel model = create();
+            model.AskName = _ => Task.FromResult<string?>("mid");
 
-            model.NewInstanceCommand.Execute(null);
-            bool naming = model.IsNaming;
-            model.NewName = "mid";
-            bool canCreate = model.CreateInstanceCommand.CanExecute(null);
-            model.CreateInstanceCommand.Execute(null);
+            await model.NewInstanceCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(naming, Is.True);
-                Assert.That(canCreate, Is.True);
                 Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(alpha_mid_zed));
                 Assert.That(model.Selected!.Name, Is.EqualTo("mid"));
-                Assert.That(model.IsNaming, Is.False);
                 Assert.That(Directory.Exists(model.Selected.Instance.Directory), Is.True);
+                Assert.That(problems, Is.Empty);
             }
         }
 
         [Test]
-        public void EmptyNameCannotBeCreated()
-        {
-            MainViewModel model = create();
-            model.NewInstanceCommand.Execute(null);
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(model.CreateInstanceCommand.CanExecute(null), Is.False);
-                Assert.That(model.NewNameProblem, Is.Null);
-            }
-        }
-
-        [TestCase("a/b")]
-        [TestCase("con")]
-        [TestCase("name.")]
-        public void BadNameShowsAProblemAndCannotBeCreated(string name)
-        {
-            MainViewModel model = create();
-            model.NewInstanceCommand.Execute(null);
-
-            model.NewName = name;
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(model.NewNameProblem, Is.Not.Null);
-                Assert.That(model.CreateInstanceCommand.CanExecute(null), Is.False);
-            }
-        }
-
-        [Test]
-        public void NameAlreadyTakenShowsAProblem()
+        public async Task DialogIsGivenTheStoresNamingRules()
         {
             store.Create("alpha");
             MainViewModel model = create();
-            model.NewInstanceCommand.Execute(null);
+            var verdicts = new List<string?>();
+            model.AskName = validate =>
+            {
+                verdicts.Add(validate("a/b"));
+                verdicts.Add(validate("ALPHA"));
+                verdicts.Add(validate("fine"));
+                return Task.FromResult<string?>(null);
+            };
 
-            model.NewName = "ALPHA";
+            await model.NewInstanceCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(model.NewNameProblem, Does.Contain("already"));
-                Assert.That(model.CreateInstanceCommand.CanExecute(null), Is.False);
+                Assert.That(verdicts[0], Is.Not.Null);
+                Assert.That(verdicts[1], Does.Contain("already"));
+                Assert.That(verdicts[2], Is.Null);
             }
         }
 
         [Test]
-        public void CancellingNamingChangesNothing()
+        public async Task CancellingTheDialogChangesNothing()
         {
             MainViewModel model = create();
-            model.NewInstanceCommand.Execute(null);
-            model.NewName = "draft";
+            model.AskName = _ => Task.FromResult<string?>(null);
 
-            model.CancelNewCommand.Execute(null);
+            await model.NewInstanceCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(model.IsNaming, Is.False);
-                Assert.That(model.NewName, Is.Empty);
+                Assert.That(model.Instances, Is.Empty);
+                Assert.That(store.List(), Is.Empty);
+                Assert.That(problems, Is.Empty);
+            }
+        }
+
+        [Test]
+        public async Task WithoutADialogNothingHappens()
+        {
+            MainViewModel model = create();
+
+            await model.NewInstanceCommand.ExecuteAsync(null);
+
+            Assert.That(model.Instances, Is.Empty);
+        }
+
+        [Test]
+        public async Task NameTheStoreRefusesIsReportedAndNothingIsCreated()
+        {
+            MainViewModel model = create();
+            model.AskName = _ => Task.FromResult<string?>("con");
+
+            await model.NewInstanceCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(problems.Single(), Does.StartWith("Couldn't create con."));
                 Assert.That(model.Instances, Is.Empty);
                 Assert.That(store.List(), Is.Empty);
             }
@@ -287,9 +284,8 @@ namespace Torii.Tests
             model.PickModZip = () => Task.FromResult<string?>("mod.zip");
             model.PickOsuFolder = () => Task.FromResult<string?>("osu");
 
-            model.NewInstanceCommand.Execute(null);
-            model.NewName = "later";
-            model.CreateInstanceCommand.Execute(null);
+            model.AskName = _ => Task.FromResult<string?>("later");
+            await model.NewInstanceCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {

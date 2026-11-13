@@ -38,11 +38,7 @@ namespace Torii.Views
             model.PickOsuFolder = pickOsuFolder;
             model.ShowProblem = message => MessageDialog.ShowAsync(this, message);
 
-            model.PropertyChanged += (_, args) =>
-            {
-                if (args.PropertyName == nameof(MainViewModel.IsNaming) && model.IsNaming)
-                    Dispatcher.UIThread.Post(() => NewNameBox.Focus());
-            };
+            model.AskName = validate => NameDialog.ShowAsync(this, validate);
 
             osuCheck.Start();
         }
