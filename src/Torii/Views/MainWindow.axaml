@@ -31,6 +31,7 @@
                                 <MenuFlyout OverlayDismissEventPassThrough="True">
                                     <MenuItem Header="Open folder" Command="{Binding OpenFolderCommand}" />
                                     <MenuItem Header="Rename" Command="{Binding RenameCommand}" />
+                                    <MenuItem Header="Duplicate" Command="{Binding DuplicateCommand}" />
                                     <MenuItem Header="Delete" Command="{Binding DeleteCommand}" />
                                 </MenuFlyout>
                             </Border.ContextFlyout>

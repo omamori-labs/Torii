@@ -123,6 +123,28 @@ namespace Torii.ViewModels
             }
         }
 
+        private async Task duplicateAsync(InstanceViewModel source)
+        {
+            if (!source.DuplicateCommand.CanExecute(null))
+                return;
+
+            if (AskName == null || await AskName(new NamePrompt("Duplicate instance", "Duplicate", store.SuggestCopyName(source.Instance), candidate => store.Validate(candidate))) is not string name)
+                return;
+
+            try
+            {
+                LazerInstance copy = await Task.Run(() => store.Duplicate(source.Instance, name));
+                InstanceViewModel created = wrap(copy);
+
+                insert(created);
+                Selected = created;
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                await askProblem($"Couldn't duplicate {source.Name}. {e.Message}");
+            }
+        }
+
         private async Task deleteAsync(InstanceViewModel doomed)
         {
             if (!doomed.DeleteCommand.CanExecute(null))
@@ -163,6 +185,7 @@ namespace Torii.ViewModels
             model.OpenFolder = askOpenFolder;
             model.IsManaged = store.Manages(instance);
             model.RequestRename = () => renameAsync(model);
+            model.RequestDuplicate = () => duplicateAsync(model);
             model.RequestDelete = () => deleteAsync(model);
 
             return model;

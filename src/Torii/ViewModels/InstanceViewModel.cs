@@ -73,6 +73,8 @@ namespace Torii.ViewModels
 
         public Func<Task>? RequestRename { get; set; }
 
+        public Func<Task>? RequestDuplicate { get; set; }
+
         public Func<Task>? RequestDelete { get; set; }
 
         public bool IsManaged { get; set; }
@@ -94,17 +96,17 @@ namespace Torii.ViewModels
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(NoMods))]
-        [NotifyCanExecuteChangedFor(nameof(PlayCommand), nameof(AddModCommand))]
+        [NotifyCanExecuteChangedFor(nameof(PlayCommand), nameof(AddModCommand), nameof(DuplicateCommand))]
         public partial bool IsSetUp { get; private set; }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand), nameof(RenameCommand), nameof(DeleteCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand), nameof(RenameCommand), nameof(DuplicateCommand), nameof(DeleteCommand))]
         public partial bool IsBusy { get; private set; }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand), nameof(RenameCommand), nameof(DeleteCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand), nameof(RenameCommand), nameof(DuplicateCommand), nameof(DeleteCommand))]
         public partial bool OsuRunning { get; private set; }
 
         [ObservableProperty]
@@ -206,6 +208,13 @@ namespace Torii.ViewModels
         {
             if (RequestRename != null)
                 await RequestRename();
+        }
+
+        [RelayCommand(CanExecute = nameof(canDuplicate))]
+        public async Task DuplicateAsync()
+        {
+            if (RequestDuplicate != null)
+                await RequestDuplicate();
         }
 
         [RelayCommand(CanExecute = nameof(canManage))]
@@ -378,6 +387,8 @@ namespace Torii.ViewModels
         private bool canImport() => ImportAvailable && !IsBusy && !OsuRunning;
 
         private bool canManage() => IsManaged && !IsBusy && !OsuRunning;
+
+        private bool canDuplicate() => IsSetUp && !IsBusy && !OsuRunning;
 
         private void refreshImport() => ImportAvailable = LibrarySeed.CanSeed(library, instance);
 

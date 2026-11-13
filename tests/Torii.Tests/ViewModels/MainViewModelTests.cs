@@ -29,6 +29,8 @@ namespace Torii.Tests
 
         private static readonly string[] alpha_mid_zed = ["alpha", "mid", "zed"];
 
+        private static readonly string[] alpha_and_copy = ["alpha", "alpha copy"];
+
         private string directory = null!;
         private InstanceStore store = null!;
         private RouteHandler handler = null!;
@@ -321,6 +323,77 @@ namespace Torii.Tests
             {
                 Assert.That(model.Selected!.Name, Is.EqualTo("alpha"));
                 Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(alpha_renamed));
+            }
+        }
+
+        [Test]
+        public async Task DuplicatingAsksForANameCopiesTheInstanceAndSelectsTheCopy()
+        {
+            LazerInstance alpha = store.Create("alpha");
+            UiFixture.PlaceGame(alpha);
+            UiFixture.AddMod(alpha, "one");
+            MainViewModel model = create();
+            NamePrompt? asked = null;
+            model.AskName = prompt =>
+            {
+                asked = prompt;
+                return Task.FromResult<string?>("alpha copy");
+            };
+
+            await model.Selected!.DuplicateCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(asked!.Title, Is.EqualTo("Duplicate instance"));
+                Assert.That(asked.Confirm, Is.EqualTo("Duplicate"));
+                Assert.That(asked.Initial, Is.EqualTo("alpha copy"));
+                Assert.That(asked.Validate("alpha"), Is.Not.Null);
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(alpha_and_copy));
+                Assert.That(model.Selected!.Name, Is.EqualTo("alpha copy"));
+                Assert.That(model.Selected.ModList.Mods, Has.Count.EqualTo(1));
+                Assert.That(model.Selected.IsSetUp, Is.True);
+                Assert.That(problems, Is.Empty);
+            }
+        }
+
+        [Test]
+        public void DuplicateIsNotOfferedBeforeTheInstanceIsSetUp()
+        {
+            store.Create("alpha");
+            MainViewModel model = create();
+
+            Assert.That(model.Selected!.DuplicateCommand.CanExecute(null), Is.False);
+        }
+
+        [Test]
+        public async Task CancellingTheDuplicateChangesNothing()
+        {
+            UiFixture.PlaceGame(store.Create("alpha"));
+            MainViewModel model = create();
+            model.AskName = _ => Task.FromResult<string?>(null);
+
+            await model.Selected!.DuplicateCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(only_alpha));
+                Assert.That(problems, Is.Empty);
+            }
+        }
+
+        [Test]
+        public async Task DuplicateTheStoreRefusesIsReportedAndAddsNothing()
+        {
+            UiFixture.PlaceGame(store.Create("alpha"));
+            MainViewModel model = create();
+            model.AskName = _ => Task.FromResult<string?>("con");
+
+            await model.Selected!.DuplicateCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(problems.Single(), Does.StartWith("Couldn't duplicate alpha."));
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(only_alpha));
             }
         }
 

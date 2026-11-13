@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Torii.Core.Lazer;
+using Torii.Core.Library;
 
 namespace Torii.Core.Instances
 {
@@ -21,14 +22,18 @@ namespace Torii.Core.Instances
 
         private readonly string? legacy;
         private readonly Func<LazerInstance, bool> isRunning;
-        private readonly GameCache? cache;
+        private static readonly string[] left_behind = ["files", "logs", "backups", "updates"];
 
-        public InstanceStore(string directory, string? legacy = null, Func<LazerInstance, bool>? isRunning = null, GameCache? cache = null)
+        private readonly GameCache? cache;
+        private readonly Func<string, string, bool> link;
+
+        public InstanceStore(string directory, string? legacy = null, Func<LazerInstance, bool>? isRunning = null, GameCache? cache = null, Func<string, string, bool>? link = null)
         {
             Root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(directory));
             this.legacy = legacy == null ? null : Path.TrimEndingDirectorySeparator(Path.GetFullPath(legacy));
             this.isRunning = isRunning ?? (instance => OsuProcess.IsRunningIn(instance.Directory));
             this.cache = cache;
+            this.link = link ?? HardLinks.TryCreate;
         }
 
         public string Root { get; }
@@ -85,6 +90,60 @@ namespace Torii.Core.Instances
             return instance;
         }
 
+        public string SuggestCopyName(LazerInstance source)
+        {
+            string suggestion = $"{source.Name} copy";
+
+            for (int number = 2; Validate(suggestion) != null && number < 100; number++)
+                suggestion = $"{source.Name} copy {number}";
+
+            return suggestion;
+        }
+
+        public LazerInstance Duplicate(LazerInstance source, string name)
+        {
+            if (!Directory.Exists(source.Directory))
+                throw new InvalidOperationException("There is nothing to copy yet.");
+
+            if (Validate(name) is string problem)
+                throw new InvalidOperationException(problem);
+
+            if (isRunning(source))
+                throw new InvalidOperationException("Close osu! in this instance first.");
+
+            var copy = new LazerInstance(Path.Combine(Root, name.Trim()));
+
+            try
+            {
+                HashSet<string> game = File.Exists(source.GameFilesList)
+                    ? [.. File.ReadAllLines(source.GameFilesList).Where(line => line.Length > 0)]
+                    : [];
+                bool linking = true;
+
+                Directory.CreateDirectory(copy.Directory);
+
+                foreach (string entry in Directory.EnumerateFileSystemEntries(source.Directory))
+                {
+                    string entryName = Path.GetFileName(entry);
+
+                    // The shared library, logs and realm backups stay behind
+                    if (left_behind.Contains(entryName, StringComparer.OrdinalIgnoreCase) || entryName.StartsWith("client", StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    copyEntry(entry, Path.Combine(copy.Directory, entryName), source.Directory, game, ref linking);
+                }
+            }
+            catch
+            {
+                if (Directory.Exists(copy.Directory))
+                    Directory.Delete(copy.Directory, recursive: true);
+
+                throw;
+            }
+
+            return copy;
+        }
+
         public LazerInstance Rename(LazerInstance instance, string name)
         {
             if (!Manages(instance))
@@ -129,6 +188,29 @@ namespace Torii.Core.Instances
             Directory.Delete(instance.Directory, recursive: true);
 
             cache?.Prune(List().Select(other => other.ReadVersion()).OfType<string>());
+        }
+
+        private void copyEntry(string source, string destination, string sourceRoot, HashSet<string> game, ref bool linking)
+        {
+            if (Directory.Exists(source))
+            {
+                Directory.CreateDirectory(destination);
+
+                foreach (string child in Directory.EnumerateFileSystemEntries(source))
+                    copyEntry(child, Path.Combine(destination, Path.GetFileName(child)), sourceRoot, game, ref linking);
+
+                return;
+            }
+
+            if (linking && game.Contains(Path.GetRelativePath(sourceRoot, source)))
+            {
+                if (link(destination, source))
+                    return;
+
+                linking = false;
+            }
+
+            File.Copy(source, destination);
         }
 
         public bool Manages(LazerInstance instance) =>

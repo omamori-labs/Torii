@@ -182,7 +182,7 @@ namespace Torii.Tests
         }
 
         [AvaloniaTest]
-        public void CardMenuHasOpenRenameAndDelete()
+        public void CardMenuHasOpenRenameDuplicateAndDelete()
         {
             fixture.Store.Create("alpha");
             MainWindow window = show();
@@ -312,7 +312,7 @@ namespace Torii.Tests
         private static MenuFlyout modMenu(MainWindow window) =>
             (MenuFlyout)window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<Border>().First(b => b.ContextFlyout is MenuFlyout).ContextFlyout!;
 
-        private static readonly string?[] card_menu =["Open folder", "Rename", "Delete"];
+        private static readonly string?[] card_menu =["Open folder", "Rename", "Duplicate", "Delete"];
 
         private static readonly string?[] row_menu = ["Remove", "Try again", "Open mod folder"];
 

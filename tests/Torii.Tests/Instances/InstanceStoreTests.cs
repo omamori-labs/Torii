@@ -23,7 +23,13 @@ namespace Torii.Tests
 
         private static readonly string[] only_renamed = ["renamed"];
 
-        private static readonly string[] game_files = ["osu.Game.dll", "sq.version"];
+        private static readonly string[] alpha_and_copy = ["alpha", "alpha copy"];
+
+        private static readonly string[] only_game_dll = ["osu.Game.dll"];
+
+        private static readonly string[] only_alpha = ["alpha"];
+
+        private static readonly string[] game_files =["osu.Game.dll", "sq.version"];
 
         private static readonly string[] alpha_gamma_zzz = ["alpha", "gamma", "zzz"];
 
@@ -84,6 +90,122 @@ namespace Torii.Tests
             {
                 Assert.That(cache.Has("2026.1005.0-lazer"), Is.False);
                 Assert.That(cache.Has(cached_version), Is.True);
+            }
+        }
+
+        [Test]
+        public void DuplicateCopiesModsAndSettingsButLeavesTheSharedDataBehind()
+        {
+            LazerInstance source = sourceInstance("alpha");
+
+            LazerInstance copy = store.Duplicate(source, "alpha copy");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(copy.Name, Is.EqualTo("alpha copy"));
+                Assert.That(store.List().Select(i => i.Name), Is.EqualTo(alpha_and_copy));
+                Assert.That(File.ReadAllText(Path.Combine(copy.Directory, "omamori", "mods", "m", "mod.json")), Is.EqualTo("manifest"));
+                Assert.That(File.ReadAllText(copy.Omamori.SettingsFile), Is.EqualTo("settings"));
+                Assert.That(File.ReadAllText(Path.Combine(copy.Directory, "rulesets", "ruleset.dll")), Is.EqualTo("ruleset"));
+                Assert.That(File.Exists(copy.PortableMarker), Is.True);
+                Assert.That(File.Exists(Path.Combine(copy.Directory, "osu.Game.dll")), Is.True);
+                Assert.That(Directory.Exists(copy.FilesDirectory), Is.False);
+                Assert.That(File.Exists(copy.DatabaseFile), Is.False);
+                Assert.That(File.Exists(Path.Combine(copy.Directory, "client.realm.lock")), Is.False);
+                Assert.That(Directory.Exists(Path.Combine(copy.Directory, "logs")), Is.False);
+                Assert.That(File.Exists(Path.Combine(source.Directory, "client.realm")), Is.True);
+            }
+        }
+
+        [Test]
+        public void DuplicateLinksTheGameFilesAndCopiesTheRest()
+        {
+            var links = new System.Collections.Generic.List<string>();
+            store = new InstanceStore(Path.Combine(directory, "instances"), legacy, _ => running, link: (destination, existing) =>
+            {
+                links.Add(Path.GetFileName(destination));
+                File.Copy(existing, destination);
+                return true;
+            });
+
+            LazerInstance copy = store.Duplicate(sourceInstance("alpha"), "linked");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(links, Is.EqualTo(only_game_dll));
+                Assert.That(File.ReadAllText(Path.Combine(copy.Directory, "osu.Game.dll")), Is.EqualTo("game"));
+            }
+        }
+
+        [Test]
+        public void DuplicateCopiesGameFilesWhenLinkingFails()
+        {
+            int tries = 0;
+            store = new InstanceStore(Path.Combine(directory, "instances"), legacy, _ => running, link: (_, _) =>
+            {
+                tries++;
+                return false;
+            });
+
+            LazerInstance copy = store.Duplicate(sourceInstance("alpha"), "copied");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(tries, Is.EqualTo(1));
+                Assert.That(File.ReadAllText(Path.Combine(copy.Directory, "osu.Game.dll")), Is.EqualTo("game"));
+            }
+        }
+
+        [Test]
+        public void DuplicateIsRefusedWhileTheSourceRuns()
+        {
+            LazerInstance source = sourceInstance("alpha");
+            running = true;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(() => store.Duplicate(source, "copy"), Throws.InvalidOperationException);
+                Assert.That(store.List(), Has.Count.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public void DuplicateNeedsAFreeValidName()
+        {
+            LazerInstance source = sourceInstance("alpha");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(() => store.Duplicate(source, "ALPHA"), Throws.InvalidOperationException);
+                Assert.That(() => store.Duplicate(source, "  "), Throws.InvalidOperationException);
+                Assert.That(store.List(), Has.Count.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public void FailedDuplicateLeavesNoHalfCopyBehind()
+        {
+            store = new InstanceStore(Path.Combine(directory, "instances"), legacy, _ => running, link: (_, _) => throw new IOException("disk full"));
+            LazerInstance source = sourceInstance("alpha");
+
+            Assert.That(() => store.Duplicate(source, "broken"), Throws.InstanceOf<IOException>());
+
+            Assert.That(store.List().Select(i => i.Name), Is.EqualTo(only_alpha));
+        }
+
+        [Test]
+        public void CopyNameIsSuggestedAndMadeUnique()
+        {
+            LazerInstance source = sourceInstance("alpha");
+            string first = store.SuggestCopyName(source);
+
+            store.Create(first);
+            string second = store.SuggestCopyName(source);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(first, Is.EqualTo("alpha copy"));
+                Assert.That(second, Is.EqualTo("alpha copy 2"));
             }
         }
 
@@ -397,6 +519,31 @@ namespace Torii.Tests
                 Assert.That(() => store.Delete(new LazerInstance(store.Root)), Throws.InvalidOperationException);
                 Assert.That(store.List(), Has.Count.EqualTo(1));
             }
+        }
+
+        private LazerInstance sourceInstance(string name)
+        {
+            LazerInstance source = store.Create(name);
+
+            write(source, "osu.Game.dll", "game");
+            write(source, "framework.ini", string.Empty);
+            write(source, "torii-game-files.txt", $"osu.Game.dll{Environment.NewLine}");
+            write(source, Path.Combine("omamori", "mods", "m", "mod.json"), "manifest");
+            write(source, Path.Combine("omamori", "settings.json"), "settings");
+            write(source, Path.Combine("rulesets", "ruleset.dll"), "ruleset");
+            write(source, Path.Combine("files", "ab", "abc"), "map");
+            write(source, "client.realm", "database");
+            write(source, "client.realm.lock", string.Empty);
+            write(source, Path.Combine("logs", "runtime.log"), "log");
+
+            return source;
+        }
+
+        private static void write(LazerInstance instance, string relative, string content)
+        {
+            string path = Path.Combine(instance.Directory, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, content);
         }
 
         private static Func<string, Task> fillGame(string version) => staging =>
