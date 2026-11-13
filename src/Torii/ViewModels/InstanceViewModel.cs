@@ -275,7 +275,7 @@ namespace Torii.ViewModels
                     library.Use(instance);
                 });
                 launcher.Launch(instance);
-                Status = "Starting osu!...";
+                Status = null;
             }
             catch (Exception e) when (e is InvalidOperationException or Win32Exception or IOException or UnauthorizedAccessException)
             {

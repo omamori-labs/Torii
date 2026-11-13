@@ -188,7 +188,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(started.Single().FileName, Is.EqualTo(instance.Executable));
-                Assert.That(model.Status, Is.EqualTo("Starting osu!..."));
+                Assert.That(model.Status, Is.Null);
                 Assert.That(model.IsBusy, Is.False);
             }
         }
