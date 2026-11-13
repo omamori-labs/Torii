@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -35,7 +36,7 @@ namespace Torii.Core
                 if (!string.Equals(hash, package.Sha256, StringComparison.Ordinal))
                     throw new InvalidDataException($"The download of osu! {package.Version} doesn't match its checksum.");
 
-                InstallFromPackage(instance, file);
+                InstallFromPackage(instance, file, temporaryDirectory);
             }
             finally
             {
@@ -43,13 +44,24 @@ namespace Torii.Core
             }
         }
 
-        public static void InstallFromPackage(LazerInstance instance, string packagePath)
+        public static void InstallFromPackage(LazerInstance instance, string packagePath, string? temporaryDirectory = null, Action<string, string>? unpackAppImage = null)
         {
-            if (!OperatingSystem.IsWindows())
-                throw new PlatformNotSupportedException("Torii can only set up osu! on Windows for now.");
-
             using ZipArchive archive = Zips.Open(packagePath);
 
+            // The Linux package is one AppImage, the Windows one has the game's files as they are
+            ZipArchiveEntry? appImage = archive.Entries.FirstOrDefault(e => e.FullName.EndsWith(".AppImage", StringComparison.Ordinal));
+
+            if (appImage != null)
+                installAppImage(instance, appImage, temporaryDirectory ?? Path.GetTempPath(), unpackAppImage ?? runAppImage);
+            else
+                installFiles(instance, archive);
+
+            if (!File.Exists(instance.PortableMarker))
+                File.WriteAllText(instance.PortableMarker, string.Empty);
+        }
+
+        private static void installFiles(LazerInstance instance, ZipArchive archive)
+        {
             var files = new List<(ZipArchiveEntry Entry, string Relative, string Destination)>();
 
             foreach (ZipArchiveEntry entry in archive.Entries)
@@ -82,9 +94,77 @@ namespace Torii.Core
             }
 
             File.WriteAllLines(instance.GameFilesList, files.Select(f => f.Relative));
+        }
 
-            if (!File.Exists(instance.PortableMarker))
-                File.WriteAllText(instance.PortableMarker, string.Empty);
+        private static void installAppImage(LazerInstance instance, ZipArchiveEntry appImage, string temporaryDirectory, Action<string, string> unpack)
+        {
+            string work = Path.Combine(temporaryDirectory, $"torii-appimage-{Guid.NewGuid():N}");
+            Directory.CreateDirectory(work);
+
+            try
+            {
+                string file = Path.Combine(work, "osulazer.AppImage");
+                appImage.ExtractToFile(file);
+
+                unpack(file, work);
+
+                // --appimage-extract always unpacks to squashfs-root
+                string game = Path.Combine(work, "squashfs-root", "usr", "bin");
+
+                if (!File.Exists(Path.Combine(game, "osu.Game.dll")))
+                    throw new InvalidDataException("This isn't an osu! package, it has no game in it.");
+
+                Directory.CreateDirectory(instance.Directory);
+                removeGameFiles(instance);
+
+                var copied = new List<string>();
+
+                // File.Copy keeps the unix mode, so osu! stays executable
+                foreach (string source in Directory.EnumerateFiles(game, "*", SearchOption.AllDirectories))
+                {
+                    string relative = Path.GetRelativePath(game, source);
+                    string destination = Path.Combine(instance.Directory, relative);
+
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    File.Copy(source, destination, overwrite: true);
+                    copied.Add(relative);
+                }
+
+                File.WriteAllLines(instance.GameFilesList, copied);
+            }
+            finally
+            {
+                Directory.Delete(work, recursive: true);
+            }
+        }
+
+        private static void runAppImage(string appImage, string workDirectory)
+        {
+            if (OperatingSystem.IsWindows())
+                throw new PlatformNotSupportedException("The Linux osu! package can't be unpacked on Windows.");
+
+            File.SetUnixFileMode(appImage, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+
+            // Unpacking itself doesn't need FUSE, running the AppImage normally would
+            var info = new ProcessStartInfo(appImage, "--appimage-extract")
+            {
+                WorkingDirectory = workDirectory,
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+            };
+
+            using Process process = Process.Start(info) ?? throw new InvalidDataException("The osu! package couldn't be unpacked.");
+
+            // It lists every file it writes, an unread pipe would fill up and stall it
+            process.OutputDataReceived += (_, _) => { };
+            process.ErrorDataReceived += (_, _) => { };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+                throw new InvalidDataException("The osu! package couldn't be unpacked.");
         }
 
         // Data lives in the same folder, only delete what was extracted
