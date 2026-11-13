@@ -14,6 +14,13 @@ namespace Torii.Tests
     public class ModListViewModelTests
     {
         private static readonly string[] expected_labels = ["Patcher", "Plain"];
+        private static readonly string[] three_one_two = ["Three", "One", "Two"];
+        private static readonly string[] folders_c_a_b = ["c.three", "a.one", "b.two"];
+        private static readonly string[] two_one_newest = ["Two", "One", "Newest"];
+        private static readonly string[] folders_b_a_new = ["b.two", "a.one", "0.new"];
+        private static readonly string[] only_folder_a = ["a.one"];
+        private static readonly string[] one_two = ["One", "Two"];
+        private static readonly string[] two_one = ["Two", "One"];
         private static readonly string[] running_only = ["Running"];
         private static readonly string[] stopped_only = ["Stopped"];
         private static readonly string[] crashed_only = ["Crashed"];
@@ -123,6 +130,135 @@ namespace Torii.Tests
                 Assert.That(list.Mods[1].Byline, Is.Empty);
                 Assert.That(list.Mods[1].Patches, Is.False);
                 Assert.That(list.Mods.Select(m => m.IsOn), Has.All.True);
+            }
+        }
+
+        [Test]
+        public void MovingAModReordersItAndWritesTheOrderFile()
+        {
+            mod("a.one", "One");
+            mod("b.two", "Two");
+            mod("c.three", "Three");
+            ModListViewModel list = createOrdered();
+
+            list.Move(list.Mods[2], 0);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.Mods.Select(m => m.Label), Is.EqualTo(three_one_two));
+                Assert.That(list.Visible.Select(m => m.Label), Is.EqualTo(three_one_two));
+                Assert.That(File.ReadAllLines(order_file()), Is.EqualTo(folders_c_a_b));
+            }
+        }
+
+        [Test]
+        public void NoOrderFileIsWrittenUntilAModIsMoved()
+        {
+            mod("a.one", "One");
+            mod("b.two", "Two");
+
+            createOrdered();
+
+            Assert.That(File.Exists(order_file()), Is.False);
+        }
+
+        [Test]
+        public void SavedOrderIsAppliedWhenTheListOpens()
+        {
+            mod("a.one", "One");
+            mod("b.two", "Two");
+            mod("c.three", "Three");
+            File.WriteAllLines(order_file(), folders_c_a_b);
+
+            ModListViewModel list = createOrdered();
+
+            Assert.That(list.Mods.Select(m => m.Label), Is.EqualTo(three_one_two));
+        }
+
+        [Test]
+        public void NewModsGoLastOnceThereIsAnOrderAndAreSaved()
+        {
+            mod("a.one", "One");
+            mod("b.two", "Two");
+            ModListViewModel list = createOrdered();
+            list.Move(list.Mods[1], 0);
+
+            mod("0.new", "Newest");
+            list.Refresh();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.Mods.Select(m => m.Label), Is.EqualTo(two_one_newest));
+                Assert.That(File.ReadAllLines(order_file()), Is.EqualTo(folders_b_a_new));
+            }
+        }
+
+        [Test]
+        public void RemovedModsLeaveTheOrderFile()
+        {
+            mod("a.one", "One");
+            mod("b.two", "Two");
+            ModListViewModel list = createOrdered();
+            list.Move(list.Mods[1], 0);
+
+            list.Mods[0].RemoveCommand.Execute(null);
+
+            Assert.That(File.ReadAllLines(order_file()), Is.EqualTo(only_folder_a));
+        }
+
+        [Test]
+        public void ReorderingIsRefusedWhileSearchingOrFiltering()
+        {
+            mod("a.one", "One");
+            mod("b.two", "Two");
+            ModListViewModel list = createOrdered();
+
+            list.Search = "o";
+            bool whileSearching = list.CanReorder;
+            list.Move(list.Mods[1], 0);
+            list.Search = string.Empty;
+
+            list.Filter = ModFilter.On;
+            bool whileFiltering = list.CanReorder;
+            list.Move(list.Mods[1], 0);
+            list.Filter = ModFilter.All;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(whileSearching, Is.False);
+                Assert.That(whileFiltering, Is.False);
+                Assert.That(list.CanReorder, Is.True);
+                Assert.That(list.Mods.Select(m => m.Label), Is.EqualTo(one_two));
+                Assert.That(File.Exists(order_file()), Is.False);
+            }
+        }
+
+        [Test]
+        public void MovingPastTheEndsStaysInsideTheList()
+        {
+            mod("a.one", "One");
+            mod("b.two", "Two");
+            ModListViewModel list = createOrdered();
+
+            list.Move(list.Mods[0], 99);
+
+            Assert.That(list.Mods.Select(m => m.Label), Is.EqualTo(two_one));
+        }
+
+        [Test]
+        public void FailingToSaveTheOrderIsReportedAndTheListStillMoves()
+        {
+            mod("a.one", "One");
+            mod("b.two", "Two");
+            var problems = new List<string>();
+            var list = new ModListViewModel(new ModLibrary(instance.Omamori, () => osuRunning), message => status = message, problems.Add, orderFile: Path.Combine(directory, "missing", "order.txt"));
+
+            list.Move(list.Mods[1], 0);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(problems.Single(), Does.StartWith("Couldn't save the mod order."));
+                Assert.That(list.Mods.Select(m => m.Label), Is.EqualTo(two_one));
             }
         }
 
@@ -428,6 +564,11 @@ namespace Torii.Tests
 
             return path;
         }
+
+        private string order_file() => Path.Combine(directory, "torii-mod-order.txt");
+
+        private ModListViewModel createOrdered() =>
+            new ModListViewModel(new ModLibrary(instance.Omamori, () => osuRunning), message => status = message, orderFile: order_file());
 
         private ModListViewModel create() => new ModListViewModel(new ModLibrary(instance.Omamori, () => osuRunning), message => status = message);
 

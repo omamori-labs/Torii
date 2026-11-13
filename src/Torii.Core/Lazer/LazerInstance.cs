@@ -32,6 +32,8 @@ namespace Torii.Core.Lazer
 
         public string GameFilesList => Path.Combine(Directory, "torii-game-files.txt");
 
+        public string ModOrderFile => Path.Combine(Directory, "torii-mod-order.txt");
+
         public OmamoriInstall Omamori => new OmamoriInstall(Directory);
 
         // No marker and the game opens the player's real data

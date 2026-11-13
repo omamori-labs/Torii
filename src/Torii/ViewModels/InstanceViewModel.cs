@@ -41,7 +41,7 @@ namespace Torii.ViewModels
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
             this.launcher = launcher ?? new GameLauncher();
 
-            ModList = new ModListViewModel(new ModLibrary(instance.Omamori, this.osuRunning), status => Status = status, message => _ = problem(message), path => OpenFolder?.Invoke(path) ?? Task.CompletedTask);
+            ModList = new ModListViewModel(new ModLibrary(instance.Omamori, this.osuRunning), status => Status = status, message => _ = problem(message), path => OpenFolder?.Invoke(path) ?? Task.CompletedTask, instance.ModOrderFile);
             ModList.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(ModListViewModel.HasMods))

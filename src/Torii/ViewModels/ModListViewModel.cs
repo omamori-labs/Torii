@@ -15,14 +15,19 @@ namespace Torii.ViewModels
         private readonly Action<string> problem;
         private readonly Func<string, Task>? openFolder;
 
+        private readonly string? orderFile;
+
         private string search = string.Empty;
         private ModFilter filter;
+        private bool customOrder;
 
-        public ModListViewModel(ModLibrary library, Action<string?> report, Action<string>? problem = null, Func<string, Task>? openFolder = null)
+        public ModListViewModel(ModLibrary library, Action<string?> report, Action<string>? problem = null, Func<string, Task>? openFolder = null, string? orderFile = null)
         {
             this.library = library;
             this.problem = problem ?? (message => report(message));
             this.openFolder = openFolder;
+            this.orderFile = orderFile;
+            customOrder = orderFile != null && ModOrder.Load(orderFile) != null;
 
             Refresh();
         }
@@ -35,13 +40,18 @@ namespace Torii.ViewModels
 
         public bool NoMatches => HasMods && Visible.Count == 0;
 
+        public bool CanReorder => search.Trim().Length == 0 && filter == ModFilter.All;
+
         public string Search
         {
             get => search;
             set
             {
-                if (SetProperty(ref search, value ?? string.Empty))
-                    applyFilter();
+                if (!SetProperty(ref search, value ?? string.Empty))
+                    return;
+
+                OnPropertyChanged(nameof(CanReorder));
+                applyFilter();
             }
         }
 
@@ -52,14 +62,31 @@ namespace Torii.ViewModels
             get => filter;
             set
             {
-                if (SetProperty(ref filter, value))
-                    applyFilter();
+                if (!SetProperty(ref filter, value))
+                    return;
+
+                OnPropertyChanged(nameof(CanReorder));
+                applyFilter();
             }
+        }
+
+        public void Move(ModItemViewModel row, int index)
+        {
+            int from = Mods.IndexOf(row);
+            int to = Math.Clamp(index, 0, Mods.Count - 1);
+
+            if (!CanReorder || from < 0 || from == to)
+                return;
+
+            Mods.Move(from, to);
+            customOrder = true;
+            applyFilter();
+            saveOrder();
         }
 
         public void Refresh()
         {
-            var mods = library.List();
+            var mods = ModOrder.Apply(library.List(), customOrder && orderFile != null ? ModOrder.Load(orderFile) : null);
 
             if (mods.Count == Mods.Count && mods.Zip(Mods).All(pair => pair.First.Directory == pair.Second.Mod.Directory))
             {
@@ -76,6 +103,24 @@ namespace Torii.ViewModels
 
             OnPropertyChanged(nameof(HasMods));
             applyFilter();
+
+            if (customOrder && orderFile != null && ModOrder.Load(orderFile) is { } saved && !saved.SequenceEqual(Mods.Select(row => Path.GetFileName(row.Mod.Directory))))
+                saveOrder();
+        }
+
+        private void saveOrder()
+        {
+            if (orderFile == null)
+                return;
+
+            try
+            {
+                ModOrder.Save(orderFile, Mods.Select(row => Path.GetFileName(row.Mod.Directory)));
+            }
+            catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+            {
+                problem($"Couldn't save the mod order. {e.Message}");
+            }
         }
 
         private void applyFilter()
