@@ -42,8 +42,7 @@ namespace Torii.Core.Library
             Directory.CreateDirectory(Root);
             Directory.CreateDirectory(instance.Directory);
 
-            if (!File.Exists(markerFile))
-                File.WriteAllText(markerFile, string.Empty);
+            Mark();
 
             if (isDone(instance.FilesDirectory, FilesDirectory, isDirectory: true) && isDone(instance.DatabaseFile, DatabaseFile, isDirectory: false))
                 return;
@@ -69,10 +68,11 @@ namespace Torii.Core.Library
             return version.Length > 0 ? version : null;
         }
 
-        public void Use(LazerInstance instance)
+        public void Use(LazerInstance instance) =>
+            Claim(instance.ReadVersion() ?? throw new InvalidOperationException("Torii can't tell which osu! version this instance has, so it can't tell whether the library is safe to open."));
+
+        public void Claim(string version)
         {
-            string version = instance.ReadVersion()
-                             ?? throw new InvalidOperationException("Torii can't tell which osu! version this instance has, so it can't tell whether the library is safe to open.");
             string? newest = ReadVersion();
 
             if (newest != null && LazerVersions.Compare(newest, version) > 0)
@@ -80,6 +80,14 @@ namespace Torii.Core.Library
 
             if (newest == null || LazerVersions.Compare(version, newest) > 0)
                 File.WriteAllText(markerFile, version);
+        }
+
+        internal void Mark()
+        {
+            Directory.CreateDirectory(Root);
+
+            if (!File.Exists(markerFile))
+                File.WriteAllText(markerFile, string.Empty);
         }
 
         private static string? target(string local, bool isDirectory)

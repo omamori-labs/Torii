@@ -3,6 +3,7 @@
   <!-- turns the trim warnings on here too, the app is published trimmed -->
   <PropertyGroup>
     <IsTrimmable>true</IsTrimmable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
