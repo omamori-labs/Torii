@@ -2,6 +2,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Torii.Core.Mods;
 
@@ -12,12 +13,14 @@ namespace Torii.ViewModels
         private readonly ModLibrary library;
         private readonly Action<string?> report;
         private readonly Action<string> problem;
+        private readonly Func<string, Task>? openFolder;
 
-        public ModListViewModel(ModLibrary library, Action<string?> report, Action<string>? problem = null)
+        public ModListViewModel(ModLibrary library, Action<string?> report, Action<string>? problem = null, Func<string, Task>? openFolder = null)
         {
             this.library = library;
             this.report = report;
             this.problem = problem ?? (message => report(message));
+            this.openFolder = openFolder;
 
             Refresh();
         }
@@ -59,6 +62,8 @@ namespace Torii.ViewModels
 
             Refresh();
         }
+
+        internal Task OpenFolder(ModItemViewModel row) => openFolder?.Invoke(row.Mod.Directory) ?? Task.CompletedTask;
 
         internal void SetEnabled(ModItemViewModel row, bool enabled)
         {

@@ -40,7 +40,7 @@ namespace Torii.ViewModels
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
             this.launcher = launcher ?? new GameLauncher();
 
-            ModList = new ModListViewModel(new ModLibrary(instance.Omamori, this.osuRunning), status => Status = status, message => _ = problem(message));
+            ModList = new ModListViewModel(new ModLibrary(instance.Omamori, this.osuRunning), status => Status = status, message => _ = problem(message), path => OpenFolder?.Invoke(path) ?? Task.CompletedTask);
             ModList.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(ModListViewModel.HasMods))
@@ -68,6 +68,14 @@ namespace Torii.ViewModels
 
         public Func<string, Task>? ShowProblem { get; set; }
 
+        public Func<string, Task>? OpenFolder { get; set; }
+
+        public Func<Task>? RequestRename { get; set; }
+
+        public Func<Task>? RequestDelete { get; set; }
+
+        public bool IsManaged { get; set; }
+
         public Func<Task<string?>>? PickOsuFolder { get; set; }
 
         public bool CanEdit => !IsBusy && !OsuRunning;
@@ -90,12 +98,12 @@ namespace Torii.ViewModels
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand), nameof(RenameCommand), nameof(DeleteCommand))]
         public partial bool IsBusy { get; private set; }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand), nameof(RenameCommand), nameof(DeleteCommand))]
         public partial bool OsuRunning { get; private set; }
 
         [ObservableProperty]
@@ -170,6 +178,27 @@ namespace Torii.ViewModels
                 return;
 
             ModList.AddFromZip(zip);
+        }
+
+        [RelayCommand]
+        public async Task OpenFolderAsync()
+        {
+            if (OpenFolder != null)
+                await OpenFolder(instance.Directory);
+        }
+
+        [RelayCommand(CanExecute = nameof(canManage))]
+        public async Task RenameAsync()
+        {
+            if (RequestRename != null)
+                await RequestRename();
+        }
+
+        [RelayCommand(CanExecute = nameof(canManage))]
+        public async Task DeleteAsync()
+        {
+            if (RequestDelete != null)
+                await RequestDelete();
         }
 
         [RelayCommand(CanExecute = nameof(canImport))]
@@ -331,6 +360,8 @@ namespace Torii.ViewModels
         private bool canAddMod() => IsSetUp && !IsBusy && !OsuRunning;
 
         private bool canImport() => ImportAvailable && !IsBusy && !OsuRunning;
+
+        private bool canManage() => IsManaged && !IsBusy && !OsuRunning;
 
         private void refreshImport() => ImportAvailable = LibrarySeed.CanSeed(library, instance);
 

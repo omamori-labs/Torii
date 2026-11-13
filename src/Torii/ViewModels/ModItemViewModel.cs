@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Torii.Core.Mods;
@@ -39,6 +40,9 @@ namespace Torii.ViewModels
 
         [RelayCommand]
         public void Retry() => owner.Retry(this);
+
+        [RelayCommand]
+        public Task OpenFolderAsync() => owner.OpenFolder(this);
 
         // Crashed mods are still on in settings
         public bool IsOn

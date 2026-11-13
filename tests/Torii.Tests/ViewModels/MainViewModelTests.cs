@@ -21,6 +21,12 @@ namespace Torii.Tests
 
         private static readonly string[] alpha_gamma = ["alpha", "gamma"];
 
+        private static readonly string[] beta_zzz = ["beta", "zzz"];
+
+        private static readonly string[] alpha_renamed = ["alpha", "renamed"];
+
+        private static readonly string[] only_alpha = ["alpha"];
+
         private static readonly string[] alpha_mid_zed = ["alpha", "mid", "zed"];
 
         private string directory = null!;
@@ -80,7 +86,6 @@ namespace Torii.Tests
             {
                 Assert.That(model.HasInstances, Is.False);
                 Assert.That(model.Selected, Is.Null);
-                Assert.That(model.DeleteCommand.CanExecute(null), Is.False);
             }
         }
 
@@ -96,7 +101,8 @@ namespace Torii.Tests
             {
                 Assert.That(model.Instances, Has.Count.EqualTo(2));
                 Assert.That(model.Selected!.Instance.Directory, Is.EqualTo(given.Directory));
-                Assert.That(model.DeleteCommand.CanExecute(null), Is.False);
+                Assert.That(model.Selected.DeleteCommand.CanExecute(null), Is.False);
+                Assert.That(model.Selected.RenameCommand.CanExecute(null), Is.False);
             }
         }
 
@@ -140,11 +146,13 @@ namespace Torii.Tests
             store.Create("alpha");
             MainViewModel model = create();
             var verdicts = new List<string?>();
-            model.AskName = validate =>
+            NamePrompt? asked = null;
+            model.AskName = prompt =>
             {
-                verdicts.Add(validate("a/b"));
-                verdicts.Add(validate("ALPHA"));
-                verdicts.Add(validate("fine"));
+                asked = prompt;
+                verdicts.Add(prompt.Validate("a/b"));
+                verdicts.Add(prompt.Validate("ALPHA"));
+                verdicts.Add(prompt.Validate("fine"));
                 return Task.FromResult<string?>(null);
             };
 
@@ -152,6 +160,9 @@ namespace Torii.Tests
 
             using (Assert.EnterMultipleScope())
             {
+                Assert.That(asked!.Title, Is.EqualTo("New instance"));
+                Assert.That(asked.Confirm, Is.EqualTo("Create"));
+                Assert.That(asked.Initial, Is.Empty);
                 Assert.That(verdicts[0], Is.Not.Null);
                 Assert.That(verdicts[1], Does.Contain("already"));
                 Assert.That(verdicts[2], Is.Null);
@@ -209,7 +220,7 @@ namespace Torii.Tests
             MainViewModel model = create();
             model.Selected = model.Instances[1];
 
-            await model.DeleteCommand.ExecuteAsync(null);
+            await model.Selected!.DeleteCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
@@ -226,7 +237,7 @@ namespace Torii.Tests
             store.Create("only");
             MainViewModel model = create();
 
-            await model.DeleteCommand.ExecuteAsync(null);
+            await model.Selected!.DeleteCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
@@ -241,7 +252,14 @@ namespace Torii.Tests
             store.Create("alpha");
             gameRunning = true;
 
-            Assert.That(create().DeleteCommand.CanExecute(null), Is.False);
+            InstanceViewModel card = create().Selected!;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(card.DeleteCommand.CanExecute(null), Is.False);
+                Assert.That(card.RenameCommand.CanExecute(null), Is.False);
+                Assert.That(card.OpenFolderCommand.CanExecute(null), Is.True);
+            }
         }
 
         [Test]
@@ -251,13 +269,144 @@ namespace Torii.Tests
             MainViewModel model = create();
             storeSeesGameRunning = true;
 
-            await model.DeleteCommand.ExecuteAsync(null);
+            await model.Selected!.DeleteCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(problems.Single(), Does.StartWith("Couldn't delete alpha.").And.Contains("Close osu!"));
                 Assert.That(model.Instances, Has.Count.EqualTo(1));
             }
+        }
+
+        [Test]
+        public async Task RenamingMovesTheInstanceAndKeepsItSelected()
+        {
+            store.Create("alpha");
+            store.Create("beta");
+            MainViewModel model = create();
+            NamePrompt? asked = null;
+            model.AskName = prompt =>
+            {
+                asked = prompt;
+                return Task.FromResult<string?>("zzz");
+            };
+
+            await model.Selected!.RenameCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(asked!.Title, Is.EqualTo("Rename instance"));
+                Assert.That(asked.Confirm, Is.EqualTo("Rename"));
+                Assert.That(asked.Initial, Is.EqualTo("alpha"));
+                Assert.That(asked.Validate("alpha"), Is.Null);
+                Assert.That(asked.Validate("beta"), Is.Not.Null);
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(beta_zzz));
+                Assert.That(model.Selected!.Name, Is.EqualTo("zzz"));
+                Assert.That(problems, Is.Empty);
+            }
+        }
+
+        [Test]
+        public async Task RenamingAnotherCardLeavesTheSelectionAlone()
+        {
+            store.Create("alpha");
+            store.Create("beta");
+            MainViewModel model = create();
+            InstanceViewModel other = model.Instances[1];
+            model.AskName = _ => Task.FromResult<string?>("renamed");
+
+            await other.RenameCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Selected!.Name, Is.EqualTo("alpha"));
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(alpha_renamed));
+            }
+        }
+
+        [Test]
+        public async Task CancellingTheRenameChangesNothing()
+        {
+            LazerInstance created = store.Create("alpha");
+            MainViewModel model = create();
+            model.AskName = _ => Task.FromResult<string?>(null);
+
+            await model.Selected!.RenameCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(only_alpha));
+                Assert.That(Directory.Exists(created.Directory), Is.True);
+                Assert.That(problems, Is.Empty);
+            }
+        }
+
+        [Test]
+        public async Task RenameTheStoreRefusesIsReportedAndKeepsTheInstance()
+        {
+            store.Create("alpha");
+            MainViewModel model = create();
+            model.AskName = _ => Task.FromResult<string?>("con");
+
+            await model.Selected!.RenameCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(problems.Single(), Does.StartWith("Couldn't rename alpha."));
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(only_alpha));
+            }
+        }
+
+        [Test]
+        public async Task DeletingAnotherCardLeavesTheSelectionAlone()
+        {
+            store.Create("alpha");
+            store.Create("beta");
+            MainViewModel model = create();
+            InstanceViewModel other = model.Instances[1];
+
+            await other.DeleteCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(only_alpha));
+                Assert.That(model.Selected!.Name, Is.EqualTo("alpha"));
+            }
+        }
+
+        [Test]
+        public async Task OpenFolderReachesTheInstanceFolder()
+        {
+            LazerInstance created = store.Create("alpha");
+            MainViewModel model = create();
+            string? opened = null;
+            model.OpenFolder = path =>
+            {
+                opened = path;
+                return Task.CompletedTask;
+            };
+
+            await model.Selected!.OpenFolderCommand.ExecuteAsync(null);
+
+            Assert.That(opened, Is.EqualTo(created.Directory));
+        }
+
+        [Test]
+        public async Task OpenFolderForAModReachesTheModFolder()
+        {
+            LazerInstance created = store.Create("alpha");
+            mod(created, "cool");
+            MainViewModel model = create();
+            string? opened = null;
+            model.OpenFolder = path =>
+            {
+                opened = path;
+                return Task.CompletedTask;
+            };
+
+            await model.Selected!.ModList.Mods[0].OpenFolderCommand.ExecuteAsync(null);
+
+            Assert.That(opened, Is.EqualTo(Path.Combine(created.Omamori.ModsDirectory, "cool")));
         }
 
         [Test]

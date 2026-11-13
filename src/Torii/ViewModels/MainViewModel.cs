@@ -1,6 +1,5 @@
 using System;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -42,10 +41,11 @@ namespace Torii.ViewModels
 
         public Func<string, Task>? ShowProblem { get; set; }
 
-        public Func<Func<string, string?>, Task<string?>>? AskName { get; set; }
+        public Func<NamePrompt, Task<string?>>? AskName { get; set; }
+
+        public Func<string, Task>? OpenFolder { get; set; }
 
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
         public partial InstanceViewModel? Selected { get; set; }
 
         public async Task RefreshAsync()
@@ -63,7 +63,7 @@ namespace Torii.ViewModels
         [RelayCommand]
         public async Task NewInstanceAsync()
         {
-            if (AskName == null || await AskName(store.Validate) is not string name)
+            if (AskName == null || await AskName(new NamePrompt("New instance", "Create", string.Empty, candidate => store.Validate(candidate))) is not string name)
                 return;
 
             try
@@ -78,10 +78,48 @@ namespace Torii.ViewModels
             }
         }
 
-        [RelayCommand(CanExecute = nameof(canDelete))]
-        public async Task DeleteAsync()
+        partial void OnSelectedChanged(InstanceViewModel? oldValue, InstanceViewModel? newValue)
         {
-            if (Selected is not { } doomed || !canDelete())
+            if (newValue != null)
+                _ = newValue.EnsureReleasesAsync();
+        }
+
+        private static bool sameFolder(LazerInstance a, LazerInstance b) =>
+            string.Equals(a.Directory, b.Directory, StringComparison.OrdinalIgnoreCase);
+
+        private async Task renameAsync(InstanceViewModel target)
+        {
+            if (!target.RenameCommand.CanExecute(null))
+                return;
+
+            if (AskName == null || await AskName(new NamePrompt("Rename instance", "Rename", target.Name, candidate => store.Validate(candidate, target.Instance))) is not string name)
+                return;
+
+            try
+            {
+                LazerInstance renamed = store.Rename(target.Instance, name);
+
+                if (ReferenceEquals(renamed, target.Instance))
+                    return;
+
+                bool wasSelected = Selected == target;
+                InstanceViewModel moved = wrap(renamed);
+
+                Instances.Remove(target);
+                insert(moved);
+
+                if (wasSelected)
+                    Selected = moved;
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                await askProblem($"Couldn't rename {target.Name}. {e.Message}");
+            }
+        }
+
+        private async Task deleteAsync(InstanceViewModel doomed)
+        {
+            if (!doomed.DeleteCommand.CanExecute(null))
                 return;
 
             try
@@ -95,31 +133,11 @@ namespace Torii.ViewModels
             }
 
             int index = Instances.IndexOf(doomed);
+            bool wasSelected = Selected == doomed;
             Instances.Remove(doomed);
-            Selected = Instances.Count == 0 ? null : Instances[Math.Min(index, Instances.Count - 1)];
-        }
 
-        partial void OnSelectedChanged(InstanceViewModel? oldValue, InstanceViewModel? newValue)
-        {
-            if (oldValue != null)
-                oldValue.PropertyChanged -= selectedChanged;
-
-            if (newValue != null)
-            {
-                newValue.PropertyChanged += selectedChanged;
-                _ = newValue.EnsureReleasesAsync();
-            }
-        }
-
-        private static bool sameFolder(LazerInstance a, LazerInstance b) =>
-            string.Equals(a.Directory, b.Directory, StringComparison.OrdinalIgnoreCase);
-
-        private bool canDelete() => Selected != null && store.Manages(Selected.Instance) && !Selected.IsBusy && !Selected.OsuRunning;
-
-        private void selectedChanged(object? sender, PropertyChangedEventArgs e)
-        {
-            if (e.PropertyName is nameof(InstanceViewModel.IsBusy) or nameof(InstanceViewModel.OsuRunning))
-                DeleteCommand.NotifyCanExecuteChanged();
+            if (wasSelected)
+                Selected = Instances.Count == 0 ? null : Instances[Math.Min(index, Instances.Count - 1)];
         }
 
         private Task<string?> askModZip() => PickModZip?.Invoke() ?? Task.FromResult<string?>(null);
@@ -128,12 +146,18 @@ namespace Torii.ViewModels
 
         private Task askProblem(string message) => ShowProblem?.Invoke(message) ?? Task.CompletedTask;
 
+        private Task askOpenFolder(string path) => OpenFolder?.Invoke(path) ?? Task.CompletedTask;
+
         private InstanceViewModel wrap(LazerInstance instance)
         {
             InstanceViewModel model = createInstance(instance);
             model.PickModZip = askModZip;
             model.PickOsuFolder = askOsuFolder;
             model.ShowProblem = askProblem;
+            model.OpenFolder = askOpenFolder;
+            model.IsManaged = store.Manages(instance);
+            model.RequestRename = () => renameAsync(model);
+            model.RequestDelete = () => deleteAsync(model);
 
             return model;
         }

@@ -16,6 +16,12 @@ namespace Torii.Tests
 
         private static readonly string[] new_then_old = ["new", "old-instance"];
 
+        private static readonly string[] only_after = ["after"];
+
+        private static readonly string[] only_renamed = ["renamed"];
+
+        private static readonly string[] alpha_gamma_zzz = ["alpha", "gamma", "zzz"];
+
         private string directory = null!;
         private string legacy = null!;
         private bool running;
@@ -196,6 +202,142 @@ namespace Torii.Tests
             {
                 Assert.That(() => store.Delete(new LazerInstance(elsewhere)), Throws.InvalidOperationException);
                 Assert.That(File.Exists(Path.Combine(elsewhere, "keep.txt")), Is.True);
+            }
+        }
+
+        [Test]
+        public void RenamingMovesTheInstanceWithEverythingInIt()
+        {
+            LazerInstance created = store.Create("before");
+            Directory.CreateDirectory(Path.Combine(created.Directory, "omamori", "mods", "a"));
+            File.WriteAllText(Path.Combine(created.Directory, "omamori", "mods", "a", "mod.json"), "{}");
+
+            LazerInstance renamed = store.Rename(created, "after");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(renamed.Name, Is.EqualTo("after"));
+                Assert.That(Directory.Exists(created.Directory), Is.False);
+                Assert.That(File.Exists(Path.Combine(renamed.Directory, "omamori", "mods", "a", "mod.json")), Is.True);
+                Assert.That(store.List().Select(i => i.Name), Is.EqualTo(only_after));
+            }
+        }
+
+        [Test]
+        public void RenamedInstanceTakesItsNewPlaceInTheList()
+        {
+            store.Create("alpha");
+            LazerInstance middle = store.Create("beta");
+            store.Create("gamma");
+
+            store.Rename(middle, "zzz");
+
+            Assert.That(store.List().Select(i => i.Name), Is.EqualTo(alpha_gamma_zzz));
+        }
+
+        [Test]
+        public void OnlyTheCaseOfTheNameCanChange()
+        {
+            LazerInstance created = store.Create("Foo");
+
+            LazerInstance renamed = store.Rename(created, "foo");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(renamed.Name, Is.EqualTo("foo"));
+                Assert.That(store.List().Single().Name, Is.EqualTo("foo"));
+            }
+        }
+
+        [Test]
+        public void RenamingToTheSameNameChangesNothing()
+        {
+            LazerInstance created = store.Create("same");
+
+            LazerInstance renamed = store.Rename(created, "same");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(renamed, Is.SameAs(created));
+                Assert.That(Directory.Exists(created.Directory), Is.True);
+            }
+        }
+
+        [Test]
+        public void NameOfAnotherInstanceIsRefusedWhenRenaming()
+        {
+            store.Create("a");
+            LazerInstance second = store.Create("b");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(() => store.Rename(second, "A"), Throws.InvalidOperationException);
+                Assert.That(Directory.Exists(second.Directory), Is.True);
+            }
+        }
+
+        [Test]
+        public void InstanceMayKeepItsOwnNameButNobodyElseMayTakeIt()
+        {
+            LazerInstance created = store.Create("alpha");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(store.Validate("alpha", created), Is.Null);
+                Assert.That(store.Validate("alpha"), Is.Not.Null);
+            }
+        }
+
+        [Test]
+        public void BadNameIsRefusedWhenRenaming()
+        {
+            LazerInstance created = store.Create("fine");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(() => store.Rename(created, "a/b"), Throws.InvalidOperationException);
+                Assert.That(Directory.Exists(created.Directory), Is.True);
+            }
+        }
+
+        [Test]
+        public void InstanceWhoseGameRunsIsNotRenamed()
+        {
+            LazerInstance created = store.Create("busy");
+            running = true;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(() => store.Rename(created, "other"), Throws.InvalidOperationException);
+                Assert.That(Directory.Exists(created.Directory), Is.True);
+            }
+        }
+
+        [Test]
+        public void FolderTheStoreDoesNotManageIsNotRenamed()
+        {
+            string elsewhere = Path.Combine(directory, "elsewhere");
+            Directory.CreateDirectory(elsewhere);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(() => store.Rename(new LazerInstance(elsewhere), "mine"), Throws.InvalidOperationException);
+                Assert.That(Directory.Exists(elsewhere), Is.True);
+            }
+        }
+
+        [Test]
+        public void OldDefaultInstanceMovesIntoTheInstancesFolderWhenRenamed()
+        {
+            Directory.CreateDirectory(legacy);
+
+            LazerInstance renamed = store.Rename(new LazerInstance(legacy), "renamed");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(Directory.Exists(legacy), Is.False);
+                Assert.That(Directory.Exists(renamed.Directory), Is.True);
+                Assert.That(store.List().Select(i => i.Name), Is.EqualTo(only_renamed));
             }
         }
 

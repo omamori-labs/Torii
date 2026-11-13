@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
@@ -38,7 +39,8 @@ namespace Torii.Views
             model.PickOsuFolder = pickOsuFolder;
             model.ShowProblem = message => MessageDialog.ShowAsync(this, message);
 
-            model.AskName = validate => NameDialog.ShowAsync(this, validate);
+            model.AskName = prompt => NameDialog.ShowAsync(this, prompt);
+            model.OpenFolder = async path => await Launcher.LaunchDirectoryInfoAsync(new DirectoryInfo(path));
 
             osuCheck.Start();
         }

@@ -47,7 +47,7 @@ namespace Torii.Core.Instances
             return [.. found.OrderBy(instance => instance.Name, StringComparer.OrdinalIgnoreCase)];
         }
 
-        public string? Validate(string name)
+        public string? Validate(string name, LazerInstance? except = null)
         {
             string trimmed = name.Trim();
 
@@ -66,7 +66,7 @@ namespace Torii.Core.Instances
             if (reserved_names.Contains(trimmed.Split('.')[0].ToUpperInvariant()))
                 return "Windows doesn't allow that name.";
 
-            if (List().Any(instance => string.Equals(instance.Name, trimmed, StringComparison.OrdinalIgnoreCase)))
+            if (List().Any(instance => (except == null || !Paths.Same(instance.Directory, except.Directory)) && string.Equals(instance.Name, trimmed, StringComparison.OrdinalIgnoreCase)))
                 return "There is already an instance with that name.";
 
             return null;
@@ -81,6 +81,39 @@ namespace Torii.Core.Instances
             Directory.CreateDirectory(instance.Directory);
 
             return instance;
+        }
+
+        public LazerInstance Rename(LazerInstance instance, string name)
+        {
+            if (!Manages(instance))
+                throw new InvalidOperationException("Torii only renames instances it manages.");
+
+            if (Validate(name, instance) is string problem)
+                throw new InvalidOperationException(problem);
+
+            if (isRunning(instance))
+                throw new InvalidOperationException("Close osu! in this instance first.");
+
+            string target = Path.Combine(Root, name.Trim());
+
+            if (string.Equals(instance.Directory, target, StringComparison.Ordinal))
+                return instance;
+
+            Directory.CreateDirectory(Root);
+
+            // Windows won't move a folder onto the same name in another case
+            if (Paths.Same(instance.Directory, target))
+            {
+                string temporary = Path.Combine(Root, $"renaming-{Guid.NewGuid():N}");
+                Directory.Move(instance.Directory, temporary);
+                Directory.Move(temporary, target);
+            }
+            else
+            {
+                Directory.Move(instance.Directory, target);
+            }
+
+            return new LazerInstance(target);
         }
 
         public void Delete(LazerInstance instance)

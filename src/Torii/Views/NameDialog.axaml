@@ -14,7 +14,7 @@
         <TextBlock x:Name="ProblemText" Foreground="Orange" TextWrapping="Wrap" MaxWidth="440" IsVisible="False" />
         <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
             <Button x:Name="CancelButton" Content="Cancel" MinWidth="80" HorizontalContentAlignment="Center" />
-            <Button x:Name="CreateButton"
+            <Button x:Name="ConfirmButton"
                     Content="Create"
                     MinWidth="80"
                     HorizontalContentAlignment="Center"
