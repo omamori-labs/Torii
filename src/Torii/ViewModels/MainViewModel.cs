@@ -23,17 +23,19 @@ namespace Torii.ViewModels
         private readonly ReleaseFeed feed;
         private readonly InstanceSetup setup;
         private readonly SharedLibrary library;
+        private readonly LibrarySeed seed;
         private readonly Func<bool> osuRunning;
         private readonly GameLauncher launcher;
 
         private string? installedVersion;
 
-        public MainViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, SharedLibrary library, Func<bool>? osuRunning = null, GameLauncher? launcher = null)
+        public MainViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, SharedLibrary library, LibrarySeed seed, Func<bool>? osuRunning = null, GameLauncher? launcher = null)
         {
             this.instance = instance;
             this.feed = feed;
             this.setup = setup;
             this.library = library;
+            this.seed = seed;
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
             this.launcher = launcher ?? new GameLauncher();
 
@@ -76,13 +78,17 @@ namespace Torii.ViewModels
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand))]
         public partial bool IsBusy { get; private set; }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
-        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand))]
+        [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand), nameof(ImportCommand))]
         public partial bool OsuRunning { get; private set; }
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(ImportCommand))]
+        public partial bool ImportAvailable { get; private set; }
 
         [ObservableProperty]
         public partial double Progress { get; private set; }
@@ -136,6 +142,7 @@ namespace Torii.ViewModels
             finally
             {
                 IsBusy = false;
+                refreshImport();
             }
         }
 
@@ -146,6 +153,45 @@ namespace Torii.ViewModels
                 return;
 
             ModList.AddFromZip(zip);
+        }
+
+        [RelayCommand(CanExecute = nameof(canImport))]
+        public async Task ImportAsync()
+        {
+            string? source = seed.FindSource();
+            string? version = seed.ReadSourceVersion();
+
+            if (source == null)
+            {
+                refreshImport();
+                return;
+            }
+
+            IsBusy = true;
+            Progress = 0;
+            Status = "Importing your osu! maps and skins...";
+
+            try
+            {
+                await seed.ImportAsync(library, source, version, new Progress<double>(fraction =>
+                {
+                    if (IsBusy)
+                        Progress = fraction;
+                }));
+
+                Status = version == null
+                    ? "Your osu! maps and skins are imported. Torii couldn't tell which osu! version they are from."
+                    : "Your osu! maps and skins are imported.";
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                Status = $"Couldn't import from osu!. {e.Message}";
+            }
+            finally
+            {
+                IsBusy = false;
+                refreshImport();
+            }
         }
 
         [RelayCommand]
@@ -218,6 +264,7 @@ namespace Torii.ViewModels
             finally
             {
                 IsBusy = false;
+                refreshImport();
             }
 
             await RefreshOsuRunningAsync();
@@ -228,6 +275,10 @@ namespace Torii.ViewModels
         private bool canPlay() => IsSetUp && !IsBusy && !OsuRunning;
 
         private bool canAddMod() => IsSetUp && !IsBusy && !OsuRunning;
+
+        private bool canImport() => ImportAvailable && !IsBusy && !OsuRunning;
+
+        private void refreshImport() => ImportAvailable = seed.FindSource() != null && LibrarySeed.CanSeed(library, instance);
 
         private void showProgress(OmamoriRelease release, SetupProgress progress)
         {
@@ -257,6 +308,8 @@ namespace Torii.ViewModels
                 (_, null) => $"osu! {osu} without Omamori",
                 _ => $"Omamori {installedVersion} on osu! {osu}",
             };
+
+            refreshImport();
         }
     }
 }

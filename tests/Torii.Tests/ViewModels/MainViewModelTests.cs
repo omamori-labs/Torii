@@ -33,6 +33,8 @@ namespace Torii.Tests
         private List<ProcessStartInfo> started = null!;
         private List<string> events = null!;
         private bool linkAllowed;
+        private string? realOsuData;
+        private bool realOsuRunning;
         private Action? launched;
 
         [SetUp]
@@ -48,6 +50,8 @@ namespace Torii.Tests
             started = [];
             events = [];
             linkAllowed = true;
+            realOsuData = null;
+            realOsuRunning = false;
             launched = null;
         }
 
@@ -274,6 +278,71 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void ImportIsOfferedWhenThereIsAnOsuLibraryToTakeIn()
+        {
+            placeRealOsu();
+            MainViewModel model = create();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.ImportAvailable, Is.True);
+                Assert.That(model.ImportCommand.CanExecute(null), Is.True);
+            }
+        }
+
+        [Test]
+        public void ImportIsNotOfferedWithoutAnOsuLibrary()
+        {
+            Assert.That(create().ImportAvailable, Is.False);
+        }
+
+        [Test]
+        public void ImportIsNotOfferedWhenTheInstanceHasItsOwnData()
+        {
+            placeRealOsu();
+            Directory.CreateDirectory(instance.Directory);
+            File.WriteAllText(instance.DatabaseFile, "mine");
+
+            Assert.That(create().ImportAvailable, Is.False);
+        }
+
+        [Test]
+        public async Task ImportingFillsTheLibraryAndHidesTheButton()
+        {
+            placeRealOsu();
+            MainViewModel model = create();
+
+            await model.ImportCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(File.ReadAllText(Path.Combine(directory, "library", "client.realm")), Is.EqualTo("db"));
+                Assert.That(File.ReadAllText(Path.Combine(directory, "library", "files", "a", "ab", "hash")), Is.EqualTo("map"));
+                Assert.That(File.ReadAllText(Path.Combine(directory, "library", "torii-library.txt")).Trim(), Is.EqualTo(lazer));
+                Assert.That(model.Status, Is.EqualTo("Your osu! maps and skins are imported."));
+                Assert.That(model.ImportAvailable, Is.False);
+                Assert.That(model.IsBusy, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task FailedImportSaysWhyAndKeepsTheButton()
+        {
+            placeRealOsu();
+            realOsuRunning = true;
+            MainViewModel model = create();
+
+            await model.ImportCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Status, Does.StartWith("Couldn't import from osu!."));
+                Assert.That(model.ImportAvailable, Is.True);
+                Assert.That(model.IsBusy, Is.False);
+            }
+        }
+
+        [Test]
         public async Task OnceTheGameRunsItCannotBeStartedAgain()
         {
             placeGame();
@@ -396,6 +465,14 @@ namespace Torii.Tests
             File.WriteAllText(Path.Combine(instance.Directory, "sq.version"), $"<package><metadata><version>{lazer}</version></metadata></package>");
         }
 
+        private void placeRealOsu()
+        {
+            realOsuData = Path.Combine(directory, "real-osu");
+            Directory.CreateDirectory(Path.Combine(realOsuData, "files", "a", "ab"));
+            File.WriteAllText(Path.Combine(realOsuData, "files", "a", "ab", "hash"), "map");
+            File.WriteAllText(Path.Combine(realOsuData, "client.realm"), "db");
+        }
+
         private MainViewModel create()
         {
             var launcher = new GameLauncher(info =>
@@ -411,7 +488,7 @@ namespace Torii.Tests
                 return linkAllowed;
             }, () => false);
 
-            return new MainViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), library, () => osuRunning, launcher);
+            return new MainViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), library, new LibrarySeed(() => realOsuRunning, () => realOsuData, () => lazer), () => osuRunning, launcher);
         }
 
         private void serveReleases(params string[] versions)

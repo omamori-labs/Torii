@@ -26,7 +26,7 @@ namespace Torii
 
                 desktop.MainWindow = new MainWindow
                 {
-                    DataContext = new MainViewModel(new LazerInstance(folder), new ReleaseFeed(http), new InstanceSetup(http), new SharedLibrary(SharedLibrary.DefaultDirectory(), ElevatedLink.Request)),
+                    DataContext = new MainViewModel(new LazerInstance(folder), new ReleaseFeed(http), new InstanceSetup(http), new SharedLibrary(SharedLibrary.DefaultDirectory(), ElevatedLink.Request), new LibrarySeed()),
                 };
             }
 

@@ -4,23 +4,38 @@ using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Torii.Core.Lazer;
 
 namespace Torii.Core.Library
 {
     public sealed class LibrarySeed
     {
         private readonly Func<bool> osuRunning;
+        private readonly Func<string?> findSource;
+        private readonly Func<string?> readVersion;
 
-        public LibrarySeed(Func<bool>? osuRunning = null)
+        public LibrarySeed(Func<bool>? osuRunning = null, Func<string?>? findSource = null, Func<string?>? readVersion = null)
         {
             this.osuRunning = osuRunning ?? anyOsuRunning;
+            this.findSource = findSource ?? RealOsu.FindDataDirectory;
+            this.readVersion = readVersion ?? RealOsu.ReadVersion;
         }
 
         public static bool IsEmpty(SharedLibrary library) =>
             !File.Exists(library.DatabaseFile) && !(Directory.Exists(library.FilesDirectory) && Directory.EnumerateFileSystemEntries(library.FilesDirectory).Any());
 
+        public static bool CanSeed(SharedLibrary library, LazerInstance instance) => IsEmpty(library) && !holdsOwnData(instance);
+
+        public string? FindSource() => findSource();
+
+        public string? ReadSourceVersion() => readVersion();
+
         public Task ImportAsync(SharedLibrary library, string source, string? version, IProgress<double>? progress = null, CancellationToken cancellation = default) =>
             Task.Run(() => import(library, source, version, progress, cancellation), cancellation);
+
+        private static bool holdsOwnData(LazerInstance instance) =>
+            (File.Exists(instance.DatabaseFile) && new FileInfo(instance.DatabaseFile).LinkTarget == null)
+            || (Directory.Exists(instance.FilesDirectory) && new DirectoryInfo(instance.FilesDirectory).LinkTarget == null && Directory.EnumerateFileSystemEntries(instance.FilesDirectory).Any());
 
         private static bool anyOsuRunning()
         {

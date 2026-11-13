@@ -27,6 +27,7 @@
                 <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes.accent="{Binding !IsSetUp}" />
                 <Button Content="Play" Command="{Binding PlayCommand}" IsVisible="{Binding IsSetUp}" Classes="accent" />
                 <Button Content="Add mod" Command="{Binding AddModCommand}" IsVisible="{Binding IsSetUp}" />
+                <Button Content="Import from osu!" Command="{Binding ImportCommand}" IsVisible="{Binding ImportAvailable}" />
             </StackPanel>
 
             <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
