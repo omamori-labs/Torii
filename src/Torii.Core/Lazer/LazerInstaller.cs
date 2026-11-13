@@ -85,7 +85,7 @@ namespace Torii.Core.Lazer
                 throw new InvalidDataException("This isn't an osu! package, it has no game in it.");
 
             Directory.CreateDirectory(instance.Directory);
-            removeGameFiles(instance);
+            RemoveGameFiles(instance);
 
             foreach ((ZipArchiveEntry entry, _, string destination) in files)
             {
@@ -115,7 +115,7 @@ namespace Torii.Core.Lazer
                     throw new InvalidDataException("This isn't an osu! package, it has no game in it.");
 
                 Directory.CreateDirectory(instance.Directory);
-                removeGameFiles(instance);
+                RemoveGameFiles(instance);
 
                 var copied = new List<string>();
 
@@ -168,7 +168,7 @@ namespace Torii.Core.Lazer
         }
 
         // Data lives in the same folder, only delete what was extracted
-        private static void removeGameFiles(LazerInstance instance)
+        internal static void RemoveGameFiles(LazerInstance instance)
         {
             if (!File.Exists(instance.GameFilesList))
                 return;
