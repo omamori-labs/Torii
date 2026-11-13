@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Torii.Core;
+using Torii.Core.Mods;
 
 namespace Torii
 {

@@ -2,7 +2,7 @@ using System;
 using System.Diagnostics;
 using System.IO;
 
-namespace Torii.Core
+namespace Torii.Core.Omamori
 {
     // Mirrors Layout in Omamori
     public sealed class OmamoriInstall

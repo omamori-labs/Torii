@@ -9,6 +9,9 @@ using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core;
+using Torii.Core.Lazer;
+using Torii.Core.Mods;
+using Torii.Core.Releases;
 
 namespace Torii.Tests
 {

@@ -3,6 +3,9 @@ using System.IO;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
+using Torii.Core.Lazer;
+using Torii.Core.Omamori;
+using Torii.Core.Releases;
 
 namespace Torii.Core
 {

@@ -3,7 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 
-namespace Torii.Core
+namespace Torii.Core.Omamori
 {
     public static class OmamoriInstaller
     {

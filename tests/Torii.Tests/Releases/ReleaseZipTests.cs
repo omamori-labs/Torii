@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 using NUnit.Framework;
-using Torii.Core;
+using Torii.Core.Releases;
 
 namespace Torii.Tests
 {

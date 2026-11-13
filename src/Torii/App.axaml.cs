@@ -3,6 +3,8 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Torii.Core;
+using Torii.Core.Lazer;
+using Torii.Core.Releases;
 
 namespace Torii
 {

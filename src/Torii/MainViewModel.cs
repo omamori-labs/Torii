@@ -9,6 +9,10 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Torii.Core;
+using Torii.Core.Lazer;
+using Torii.Core.Mods;
+using Torii.Core.Omamori;
+using Torii.Core.Releases;
 
 namespace Torii
 {

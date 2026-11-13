@@ -3,7 +3,7 @@ using System.IO;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-namespace Torii.Core
+namespace Torii.Core.Mods
 {
     internal static partial class ModManifestReader
     {

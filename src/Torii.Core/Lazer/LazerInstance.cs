@@ -3,8 +3,9 @@ using System.IO;
 using System.Linq;
 using System.Xml;
 using System.Xml.Linq;
+using Torii.Core.Omamori;
 
-namespace Torii.Core
+namespace Torii.Core.Lazer
 {
     public sealed class LazerInstance
     {

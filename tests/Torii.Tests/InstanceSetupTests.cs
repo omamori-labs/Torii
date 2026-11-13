@@ -5,6 +5,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core;
+using Torii.Core.Lazer;
+using Torii.Core.Omamori;
 
 namespace Torii.Tests
 {

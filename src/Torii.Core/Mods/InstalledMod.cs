@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace Torii.Core
+namespace Torii.Core.Mods
 {
     public sealed record InstalledMod(string Directory, ModInfo? Manifest, ModState State, string? Problem)
     {

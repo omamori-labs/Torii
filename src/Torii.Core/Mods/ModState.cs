@@ -1,4 +1,4 @@
-namespace Torii.Core
+namespace Torii.Core.Mods
 {
     public enum ModState
     {

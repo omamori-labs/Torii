@@ -4,7 +4,8 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 using NUnit.Framework;
-using Torii.Core;
+using Torii.Core.Mods;
+using Torii.Core.Omamori;
 
 namespace Torii.Tests
 {

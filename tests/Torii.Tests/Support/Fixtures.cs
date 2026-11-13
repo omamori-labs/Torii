@@ -7,7 +7,7 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Security.Cryptography;
 using System.Text;
-using Torii.Core;
+using Torii.Core.Lazer;
 
 namespace Torii.Tests
 {

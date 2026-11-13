@@ -8,7 +8,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Torii.Core
+namespace Torii.Core.Lazer
 {
     public sealed class LazerInstaller
     {

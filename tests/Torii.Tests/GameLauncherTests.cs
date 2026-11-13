@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using NUnit.Framework;
 using Torii.Core;
+using Torii.Core.Lazer;
 
 namespace Torii.Tests
 {

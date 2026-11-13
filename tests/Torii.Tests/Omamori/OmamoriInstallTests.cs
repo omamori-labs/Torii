@@ -2,7 +2,7 @@ using System;
 using System.IO;
 using System.Reflection;
 using NUnit.Framework;
-using Torii.Core;
+using Torii.Core.Omamori;
 
 namespace Torii.Tests
 {

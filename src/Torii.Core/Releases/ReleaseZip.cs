@@ -4,8 +4,9 @@ using System.IO.Compression;
 using System.Linq;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
+using Torii.Core.Omamori;
 
-namespace Torii.Core
+namespace Torii.Core.Releases
 {
     public static class ReleaseZip
     {

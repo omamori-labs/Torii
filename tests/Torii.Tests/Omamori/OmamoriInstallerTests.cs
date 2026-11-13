@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using NUnit.Framework;
-using Torii.Core;
+using Torii.Core.Omamori;
 
 namespace Torii.Tests
 {

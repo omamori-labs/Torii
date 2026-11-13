@@ -8,7 +8,8 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using NUnit.Framework;
-using Torii.Core;
+using Torii.Core.Omamori;
+using Torii.Core.Releases;
 
 namespace Torii.Tests
 {

@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using Torii.Core.Lazer;
 
 namespace Torii.Core
 {

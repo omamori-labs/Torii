@@ -2,7 +2,7 @@ using System;
 using System.Globalization;
 using System.Linq;
 
-namespace Torii.Core
+namespace Torii.Core.Lazer
 {
     internal static class LazerVersions
     {
