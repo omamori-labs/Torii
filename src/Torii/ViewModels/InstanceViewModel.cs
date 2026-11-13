@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
@@ -178,6 +179,16 @@ namespace Torii.ViewModels
                 return;
 
             ModList.AddFromZip(zip);
+        }
+
+        public bool AcceptsMods() => canAddMod();
+
+        public void AddMods(IEnumerable<string> paths)
+        {
+            List<string> zips = [.. paths.Where(path => path.EndsWith(".zip", StringComparison.OrdinalIgnoreCase))];
+
+            if (zips.Count > 0 && canAddMod())
+                ModList.AddFromZips(zips);
         }
 
         [RelayCommand]

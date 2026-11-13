@@ -473,6 +473,108 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void DroppedZipsAreAdded()
+        {
+            placeGame();
+            InstanceViewModel model = create();
+
+            model.AddMods([modZip("a.one", "One"), modZip("b.two", "Two")]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.ModList.Mods, Has.Count.EqualTo(2));
+                Assert.That(model.Status, Is.Null);
+                Assert.That(problems, Is.Empty);
+            }
+        }
+
+        [Test]
+        public void OnlyZipsAreTakenFromADrop()
+        {
+            placeGame();
+            InstanceViewModel model = create();
+            string notes = Path.Combine(directory, "notes.txt");
+            File.WriteAllText(notes, "hello");
+
+            model.AddMods([notes, modZip("a.one", "One")]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.ModList.Mods.Single().Label, Is.EqualTo("One"));
+                Assert.That(problems, Is.Empty);
+            }
+        }
+
+        [Test]
+        public void ZipExtensionCountsInAnyCase()
+        {
+            placeGame();
+            InstanceViewModel model = create();
+            string upper = Path.Combine(directory, "UPPER.ZIP");
+            File.Move(modZip("a.one", "One"), upper);
+
+            model.AddMods([upper]);
+
+            Assert.That(model.ModList.Mods.Single().Label, Is.EqualTo("One"));
+        }
+
+        [Test]
+        public void DropWithoutAnyZipDoesNothing()
+        {
+            placeGame();
+            InstanceViewModel model = create();
+            string notes = Path.Combine(directory, "notes.txt");
+            File.WriteAllText(notes, "hello");
+
+            model.AddMods([notes]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.ModList.Mods, Is.Empty);
+                Assert.That(model.Status, Is.Null);
+                Assert.That(problems, Is.Empty);
+            }
+        }
+
+        [Test]
+        public void ModsAreAcceptedWhenSetUpAndIdle()
+        {
+            placeGame();
+
+            Assert.That(create().AcceptsMods(), Is.True);
+        }
+
+        [Test]
+        public void ModsAreRefusedUntilTheInstanceIsSetUp()
+        {
+            InstanceViewModel model = create();
+
+            model.AddMods([modZip("a.one", "One")]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.AcceptsMods(), Is.False);
+                Assert.That(model.ModList.Mods, Is.Empty);
+            }
+        }
+
+        [Test]
+        public void ModsAreRefusedWhileTheGameRuns()
+        {
+            placeGame();
+            osuRunning = true;
+            InstanceViewModel model = create();
+
+            model.AddMods([modZip("a.one", "One")]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.AcceptsMods(), Is.False);
+                Assert.That(model.ModList.Mods, Is.Empty);
+            }
+        }
+
+        [Test]
         public async Task OnceTheGameRunsItCannotBeStartedAgain()
         {
             placeGame();
@@ -533,7 +635,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(model.ModList.Mods.Single().Label, Is.EqualTo("Cool Mod"));
-                Assert.That(model.Status, Is.EqualTo("Cool Mod 1.0.0 is installed."));
+                Assert.That(model.Status, Is.Null);
                 Assert.That(model.NoMods, Is.False);
             }
         }

@@ -1,14 +1,17 @@
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Headless.NUnit;
 using Avalonia.Input;
+using Avalonia.Input.Raw;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using NUnit.Framework;
 using Torii.Core.Lazer;
+using Torii.ViewModels;
 using Torii.Views;
 
 namespace Torii.Tests
@@ -83,6 +86,55 @@ namespace Torii.Tests
         }
 
         [AvaloniaTest]
+        public void DroppingAZipOnTheWindowAddsTheMod()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            UiFixture.PlaceGame(alpha);
+            MainWindow window = show();
+
+            drop(window, fixture.ModZip("a.one", "One"));
+
+            Assert.That(selected(window).ModList.Mods.Single().Label, Is.EqualTo("One"));
+        }
+
+        [AvaloniaTest]
+        public void DroppingSeveralZipsAddsThemAll()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            UiFixture.PlaceGame(alpha);
+            MainWindow window = show();
+
+            drop(window, fixture.ModZip("a.one", "One"), fixture.ModZip("b.two", "Two"));
+
+            Assert.That(selected(window).ModList.Mods, Has.Count.EqualTo(2));
+        }
+
+        [AvaloniaTest]
+        public void DroppingSomethingThatIsNotAZipChangesNothing()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            UiFixture.PlaceGame(alpha);
+            string notes = Path.Combine(fixture.Root, "notes.txt");
+            File.WriteAllText(notes, "hello");
+            MainWindow window = show();
+
+            drop(window, notes);
+
+            Assert.That(selected(window).ModList.Mods, Is.Empty);
+        }
+
+        [AvaloniaTest]
+        public void DroppedZipIsRefusedUntilTheInstanceIsSetUp()
+        {
+            fixture.Store.Create("alpha");
+            MainWindow window = show();
+
+            drop(window, fixture.ModZip("a.one", "One"));
+
+            Assert.That(selected(window).ModList.Mods, Is.Empty);
+        }
+
+        [AvaloniaTest]
         public void CardMenuHostFillsTheWholeCard()
         {
             fixture.Store.Create("alpha");
@@ -149,7 +201,7 @@ namespace Torii.Tests
             MainWindow window = show();
 
             var cardMenu = (MenuFlyout)cardHost(window.GetVisualDescendants().OfType<ListBoxItem>().First()).ContextFlyout!;
-            var rowMenu = (MenuFlyout)window.GetVisualDescendants().OfType<Grid>().First(g => g.ContextFlyout is MenuFlyout).ContextFlyout!;
+            MenuFlyout rowMenu = modMenu(window);
 
             using (Assert.EnterMultipleScope())
             {
@@ -164,14 +216,54 @@ namespace Torii.Tests
             LazerInstance alpha = fixture.Store.Create("alpha");
             UiFixture.AddMod(alpha, "one");
             MainWindow window = show();
-            var rowMenu = (MenuFlyout)window.GetVisualDescendants().OfType<Grid>().First(g => g.ContextFlyout is MenuFlyout).ContextFlyout!;
+            MenuFlyout rowMenu = modMenu(window);
 
             string?[] headers = [.. rowMenu.Items.OfType<MenuItem>().Select(i => i.Header as string)];
 
             Assert.That(headers, Is.EqualTo(row_menu));
         }
 
-        private static readonly string?[] card_menu = ["Open folder", "Rename", "Delete"];
+        [AvaloniaTest]
+        public void ModListScrollsWhenThereAreMoreModsThanFit()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+
+            for (int i = 0; i < 40; i++)
+                UiFixture.AddMod(alpha, $"mod{i:00}");
+
+            MainWindow window = show();
+            ScrollViewer scroller = window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<ScrollViewer>().First(s => s.IsEffectivelyVisible);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(scroller.Extent.Height, Is.GreaterThan(scroller.Viewport.Height));
+                Assert.That(scroller.Viewport.Height, Is.LessThanOrEqualTo(window.Bounds.Height));
+            }
+
+            scroller.ScrollToEnd();
+            layout(window);
+
+            Assert.That(scroller.Offset.Y, Is.GreaterThan(0));
+        }
+
+        [AvaloniaTest]
+        public void EveryModIsItsOwnCard()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            UiFixture.AddMod(alpha, "one");
+            UiFixture.AddMod(alpha, "two");
+            MainWindow window = show();
+
+            List<Border> cards = [.. window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<Border>().Where(b => b.ContextFlyout is MenuFlyout)];
+
+            Assert.That(cards, Has.Count.EqualTo(2));
+            Assert.That(boundsIn(window, cards[0]).Intersects(boundsIn(window, cards[1])), Is.False);
+        }
+
+        private static MenuFlyout modMenu(MainWindow window) =>
+            (MenuFlyout)window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<Border>().First(b => b.ContextFlyout is MenuFlyout).ContextFlyout!;
+
+        private static readonly string?[] card_menu =["Open folder", "Rename", "Delete"];
 
         private static readonly string?[] row_menu = ["Remove", "Try again", "Open mod folder"];
 
@@ -181,6 +273,22 @@ namespace Torii.Tests
 
         private static List<Button> visibleButtons(Window window) =>
             [.. window.GetVisualDescendants().OfType<Button>().Where(b => b.IsEffectivelyVisible && b.Bounds.Width > 0)];
+
+        private static InstanceViewModel selected(MainWindow window) => ((MainViewModel)window.DataContext!).Selected!;
+
+        private static void drop(MainWindow window, params string[] paths)
+        {
+            var transfer = new DataTransfer();
+
+            foreach (string path in paths)
+                transfer.Add(DataTransferItem.Create(DataFormat.File, DroppedFile.At(path)));
+
+            var point = new Point(400, 200);
+            window.DragDrop(point, RawDragEventType.DragEnter, transfer, DragDropEffects.Copy);
+            window.DragDrop(point, RawDragEventType.DragOver, transfer, DragDropEffects.Copy);
+            window.DragDrop(point, RawDragEventType.Drop, transfer, DragDropEffects.Copy);
+            Dispatcher.UIThread.RunJobs();
+        }
 
         private static void layout(Window window)
         {

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Net.Http;
+using System.Text;
 using Torii.Core;
 using Torii.Core.Instances;
 using Torii.Core.Lazer;
@@ -53,6 +54,19 @@ namespace Torii.Tests
             File.WriteAllText(Path.Combine(folder, "mod.json"), $$"""
                 { "id": "{{id}}", "name": "{{id}}", "version": "1.0.0", "author": "", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": ["Cosmetic"] }
                 """);
+        }
+
+        public string ModZip(string id, string name)
+        {
+            string path = Path.Combine(Root, $"{id}.zip");
+
+            File.WriteAllBytes(path, Fixtures.Zip(
+                ($"{id}/Mod.dll", []),
+                ($"{id}/mod.json", Encoding.UTF8.GetBytes($$"""
+                    { "id": "{{id}}", "name": "{{name}}", "version": "1.0.0", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": ["Cosmetic"] }
+                    """))));
+
+            return path;
         }
 
         public void Dispose()

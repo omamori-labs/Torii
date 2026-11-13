@@ -1,7 +1,9 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Torii.ViewModels;
@@ -26,6 +28,10 @@ namespace Torii.Views
 
             // Mods can be dropped into the folder by hand
             Activated += (_, _) => (DataContext as MainViewModel)?.RefreshMods();
+
+            DragDrop.SetAllowDrop(this, true);
+            DragDrop.AddDragOverHandler(this, onDragOver);
+            DragDrop.AddDropHandler(this, onDrop);
         }
 
         protected override void OnOpened(EventArgs e)
@@ -50,6 +56,24 @@ namespace Torii.Views
             osuCheck.Stop();
 
             base.OnClosed(e);
+        }
+
+        private void onDragOver(object? sender, DragEventArgs e)
+        {
+            bool accepted = (DataContext as MainViewModel)?.Selected is { } selected
+                            && selected.AcceptsMods()
+                            && e.DataTransfer.TryGetFiles() is { } files
+                            && files.Any(file => file.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+
+            e.DragEffects = accepted ? DragDropEffects.Copy : DragDropEffects.None;
+        }
+
+        private void onDrop(object? sender, DragEventArgs e)
+        {
+            if ((DataContext as MainViewModel)?.Selected is not { } selected || e.DataTransfer.TryGetFiles() is not { } files)
+                return;
+
+            selected.AddMods(files.Select(file => file.TryGetLocalPath()).OfType<string>());
         }
 
         private async Task<string?> pickOsuFolder()

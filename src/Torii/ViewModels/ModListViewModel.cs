@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -11,14 +12,12 @@ namespace Torii.ViewModels
     public sealed class ModListViewModel : ObservableObject
     {
         private readonly ModLibrary library;
-        private readonly Action<string?> report;
         private readonly Action<string> problem;
         private readonly Func<string, Task>? openFolder;
 
         public ModListViewModel(ModLibrary library, Action<string?> report, Action<string>? problem = null, Func<string, Task>? openFolder = null)
         {
             this.library = library;
-            this.report = report;
             this.problem = problem ?? (message => report(message));
             this.openFolder = openFolder;
 
@@ -52,8 +51,7 @@ namespace Torii.ViewModels
         {
             try
             {
-                InstalledMod mod = library.InstallFromZip(zip);
-                report($"{mod.Label} {mod.Manifest?.Version} is installed.");
+                library.InstallFromZip(zip);
             }
             catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException)
             {
@@ -63,6 +61,34 @@ namespace Torii.ViewModels
             Refresh();
         }
 
+        public void AddFromZips(IReadOnlyList<string> zips)
+        {
+            if (zips.Count == 1)
+            {
+                AddFromZip(zips[0]);
+                return;
+            }
+
+            var failures = new List<string>();
+
+            foreach (string zip in zips)
+            {
+                try
+                {
+                    library.InstallFromZip(zip);
+                }
+                catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException)
+                {
+                    failures.Add($"{Path.GetFileName(zip)}: {e.Message}");
+                }
+            }
+
+            Refresh();
+
+            if (failures.Count > 0)
+                problem($"Couldn't add {failures.Count} of {zips.Count} mods.{Environment.NewLine}{string.Join(Environment.NewLine, failures)}");
+        }
+
         internal Task OpenFolder(ModItemViewModel row) => openFolder?.Invoke(row.Mod.Directory) ?? Task.CompletedTask;
 
         internal void SetEnabled(ModItemViewModel row, bool enabled)
@@ -70,7 +96,6 @@ namespace Torii.ViewModels
             try
             {
                 library.SetEnabled(row.Mod.Manifest!.Id, enabled);
-                report($"{row.Label} is {(enabled ? "on" : "off")} the next time osu! starts.");
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
@@ -86,7 +111,6 @@ namespace Torii.ViewModels
             try
             {
                 library.Remove(row.Mod);
-                report($"{row.Label} is removed. Its settings were kept.");
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
@@ -101,7 +125,6 @@ namespace Torii.ViewModels
             try
             {
                 library.Retry(row.Mod.Manifest!.Id);
-                report($"{row.Label} is tried again the next time osu! starts.");
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {

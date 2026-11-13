@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using NUnit.Framework;
 using Torii.Core.Lazer;
 using Torii.Core.Mods;
@@ -36,6 +38,68 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void SeveralZipsAreInstalledTogether()
+        {
+            ModListViewModel list = create();
+
+            list.AddFromZips([modZip("a.one", "One"), modZip("b.two", "Two")]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.Mods, Has.Count.EqualTo(2));
+                Assert.That(status, Is.Null);
+            }
+        }
+
+        [Test]
+        public void OneZipIsInstalledWithoutAMessage()
+        {
+            ModListViewModel list = create();
+
+            list.AddFromZips([modZip("a.one", "One")]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.Mods.Single().Label, Is.EqualTo("One"));
+                Assert.That(status, Is.Null);
+            }
+        }
+
+        [Test]
+        public void BadZipInABatchIsReportedAlongsideTheGoodOnes()
+        {
+            var problems = new List<string>();
+            var list = new ModListViewModel(new ModLibrary(instance.Omamori, () => osuRunning), message => status = message, problems.Add);
+
+            list.AddFromZips([modZip("a.one", "One"), notAMod("bad.zip")]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.Mods.Single().Label, Is.EqualTo("One"));
+                Assert.That(status, Is.Null);
+                Assert.That(problems, Has.Count.EqualTo(1));
+                Assert.That(problems[0], Does.StartWith("Couldn't add 1 of 2 mods.").And.Contain("bad.zip"));
+            }
+        }
+
+        [Test]
+        public void ABatchOfBadZipsIsReportedInOneMessage()
+        {
+            var problems = new List<string>();
+            var list = new ModListViewModel(new ModLibrary(instance.Omamori, () => osuRunning), message => status = message, problems.Add);
+
+            list.AddFromZips([notAMod("one.zip"), notAMod("two.zip")]);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.Mods, Is.Empty);
+                Assert.That(status, Is.Null);
+                Assert.That(problems, Has.Count.EqualTo(1));
+                Assert.That(problems[0], Does.StartWith("Couldn't add 2 of 2 mods.").And.Contain("one.zip").And.Contain("two.zip"));
+            }
+        }
+
+        [Test]
         public void ModsAreListed()
         {
             mod("b.plain", "Plain", author: "", capabilities: "\"Cosmetic\"");
@@ -65,13 +129,15 @@ namespace Torii.Tests
             row.IsOn = false;
             bool off = row.IsOn;
             string? offStatus = status;
+            bool offOnDisk = new ModLibrary(instance.Omamori, () => false).List()[0].State == ModState.Off;
 
             row.IsOn = true;
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(off, Is.False);
-                Assert.That(offStatus, Is.EqualTo("Cool Mod is off the next time osu! starts."));
+                Assert.That(offOnDisk, Is.True);
+                Assert.That(offStatus, Is.Null);
                 Assert.That(row.IsOn, Is.True);
                 Assert.That(new ModLibrary(instance.Omamori, () => false).List()[0].State, Is.EqualTo(ModState.On));
                 Assert.That(list.Mods[0], Is.SameAs(row));
@@ -140,7 +206,7 @@ namespace Torii.Tests
             {
                 Assert.That(list.Mods, Is.Empty);
                 Assert.That(Directory.Exists(Path.Combine(instance.Omamori.ModsDirectory, "a.mod")), Is.False);
-                Assert.That(status, Is.EqualTo("Cool Mod is removed. Its settings were kept."));
+                Assert.That(status, Is.Null);
             }
         }
 
@@ -207,8 +273,29 @@ namespace Torii.Tests
             {
                 Assert.That(list.Mods[0].CanRetry, Is.False);
                 Assert.That(list.Mods[0].Problem, Is.Empty);
-                Assert.That(status, Is.EqualTo("Crashed is tried again the next time osu! starts."));
+                Assert.That(status, Is.Null);
             }
+        }
+
+        private string modZip(string id, string name)
+        {
+            string path = Path.Combine(directory, $"{id}.zip");
+
+            File.WriteAllBytes(path, Fixtures.Zip(
+                ($"{id}/Mod.dll", []),
+                ($"{id}/mod.json", Encoding.UTF8.GetBytes($$"""
+                    { "id": "{{id}}", "name": "{{name}}", "version": "1.0.0", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": ["Cosmetic"] }
+                    """))));
+
+            return path;
+        }
+
+        private string notAMod(string fileName)
+        {
+            string path = Path.Combine(directory, fileName);
+            File.WriteAllBytes(path, Fixtures.Zip(("readme.txt", "hi"u8.ToArray())));
+
+            return path;
         }
 
         private ModListViewModel create() => new ModListViewModel(new ModLibrary(instance.Omamori, () => osuRunning), message => status = message);
