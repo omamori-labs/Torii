@@ -6,9 +6,9 @@ namespace Torii.ViewModels
 {
     public sealed partial class ModItemViewModel : ObservableObject
     {
-        private readonly MainViewModel owner;
+        private readonly ModListViewModel owner;
 
-        public ModItemViewModel(MainViewModel owner, InstalledMod mod)
+        public ModItemViewModel(ModListViewModel owner, InstalledMod mod)
         {
             this.owner = owner;
             Mod = mod;

@@ -38,8 +38,8 @@
         <Panel>
             <TextBlock Text="No mods installed." IsVisible="{Binding NoMods}" Opacity="0.6" />
 
-            <ScrollViewer IsVisible="{Binding HasMods}">
-                <ItemsControl ItemsSource="{Binding Mods}" IsEnabled="{Binding CanEdit}">
+            <ScrollViewer IsVisible="{Binding ModList.HasMods}">
+                <ItemsControl ItemsSource="{Binding ModList.Mods}" IsEnabled="{Binding CanEdit}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ModItemViewModel">
                             <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">

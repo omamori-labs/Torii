@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core;
 using Torii.Core.Lazer;
-using Torii.Core.Mods;
 using Torii.Core.Releases;
 using Torii.ViewModels;
 
@@ -20,8 +19,6 @@ namespace Torii.Tests
     public class MainViewModelTests
     {
         private const string lazer = "2026.1005.0-lazer";
-
-        private static readonly string[] expected_labels = ["Patcher", "Plain"];
 
         private string directory = null!;
         private LazerInstance instance = null!;
@@ -62,7 +59,7 @@ namespace Torii.Tests
             {
                 Assert.That(model.Summary, Is.EqualTo("Not set up yet"));
                 Assert.That(model.InstallLabel, Is.EqualTo("Set up"));
-                Assert.That(model.HasMods, Is.False);
+                Assert.That(model.ModList.HasMods, Is.False);
             }
         }
 
@@ -156,99 +153,6 @@ namespace Torii.Tests
         }
 
         [Test]
-        public void ModsAreListed()
-        {
-            mod("b.plain", "Plain", author: "", capabilities: "\"Cosmetic\"");
-            mod("a.patcher", "Patcher", author: "someone", capabilities: "\"Patches\"");
-
-            MainViewModel model = create();
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(model.HasMods, Is.True);
-                Assert.That(model.Mods.Select(m => m.Label), Is.EqualTo(expected_labels));
-                Assert.That(model.Mods[0].Byline, Is.EqualTo("by someone"));
-                Assert.That(model.Mods[0].Patches, Is.True);
-                Assert.That(model.Mods[1].Byline, Is.Empty);
-                Assert.That(model.Mods[1].Patches, Is.False);
-                Assert.That(model.Mods.Select(m => m.IsOn), Has.All.True);
-            }
-        }
-
-        [Test]
-        public void SwitchingAModOffAndOn()
-        {
-            mod("a.mod", "Cool Mod");
-            MainViewModel model = create();
-            ModItemViewModel row = model.Mods[0];
-
-            row.IsOn = false;
-            bool off = row.IsOn;
-            string? offStatus = model.Status;
-
-            row.IsOn = true;
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(off, Is.False);
-                Assert.That(offStatus, Is.EqualTo("Cool Mod is off the next time osu! starts."));
-                Assert.That(row.IsOn, Is.True);
-                Assert.That(new ModLibrary(instance.Omamori, () => false).List()[0].State, Is.EqualTo(ModState.On));
-                Assert.That(model.Mods[0], Is.SameAs(row));
-            }
-        }
-
-        [Test]
-        public void SwitchingAModWhileTheInstanceRunsIsRefusedAndTheSwitchGoesBack()
-        {
-            mod("a.mod", "Cool Mod");
-            MainViewModel model = create();
-            ModItemViewModel row = model.Mods[0];
-            bool reverted = false;
-            row.PropertyChanged += (_, e) => reverted |= e.PropertyName == nameof(ModItemViewModel.IsOn);
-
-            osuRunning = true;
-            row.IsOn = false;
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(row.IsOn, Is.True);
-                Assert.That(reverted, Is.True);
-                Assert.That(model.Status, Does.StartWith("Couldn't turn Cool Mod off."));
-                Assert.That(File.Exists(instance.Omamori.SettingsFile), Is.False);
-            }
-        }
-
-        [Test]
-        public void BrokenModCannotBeSwitched()
-        {
-            string folder = Path.Combine(instance.Omamori.ModsDirectory, "broken");
-            Directory.CreateDirectory(folder);
-            File.WriteAllText(Path.Combine(folder, "mod.json"), "not json");
-
-            ModItemViewModel row = create().Mods[0];
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(row.CanToggle, Is.False);
-                Assert.That(row.IsOn, Is.False);
-                Assert.That(row.Label, Is.EqualTo("broken"));
-                Assert.That(row.Problem, Is.Not.Empty);
-            }
-        }
-
-        [Test]
-        public void ModsAddedByHandShowUpOnRefresh()
-        {
-            MainViewModel model = create();
-
-            mod("a.mod", "Cool Mod");
-            model.RefreshMods();
-
-            Assert.That(model.Mods, Has.Count.EqualTo(1));
-        }
-
-        [Test]
         public void ThereIsNothingToPlayBeforeSetup()
         {
             MainViewModel model = create();
@@ -335,7 +239,7 @@ namespace Torii.Tests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(model.Mods.Single().Label, Is.EqualTo("Cool Mod"));
+                Assert.That(model.ModList.Mods.Single().Label, Is.EqualTo("Cool Mod"));
                 Assert.That(model.Status, Is.EqualTo("Cool Mod 1.0.0 is installed."));
                 Assert.That(model.NoMods, Is.False);
             }
@@ -352,7 +256,7 @@ namespace Torii.Tests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(model.Mods, Is.Empty);
+                Assert.That(model.ModList.Mods, Is.Empty);
                 Assert.That(model.Status, Is.Null);
             }
         }
@@ -370,74 +274,8 @@ namespace Torii.Tests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(model.Mods, Is.Empty);
+                Assert.That(model.ModList.Mods, Is.Empty);
                 Assert.That(model.Status, Does.StartWith("Couldn't add the mod."));
-            }
-        }
-
-        [Test]
-        public void RemovingAModTakesItOffTheList()
-        {
-            mod("a.mod", "Cool Mod");
-            MainViewModel model = create();
-
-            model.Mods[0].RemoveCommand.Execute(null);
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(model.Mods, Is.Empty);
-                Assert.That(Directory.Exists(Path.Combine(instance.Omamori.ModsDirectory, "a.mod")), Is.False);
-                Assert.That(model.Status, Is.EqualTo("Cool Mod is removed. Its settings were kept."));
-            }
-        }
-
-        [Test]
-        public void RemovingAModWhileTheInstanceRunsIsRefused()
-        {
-            mod("a.mod", "Cool Mod");
-            MainViewModel model = create();
-
-            osuRunning = true;
-            model.Mods[0].RemoveCommand.Execute(null);
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(model.Mods, Has.Count.EqualTo(1));
-                Assert.That(model.Status, Does.StartWith("Couldn't remove Cool Mod."));
-            }
-        }
-
-        [Test]
-        public void OnlyACrashedModCanBeTriedAgain()
-        {
-            mod("a.crashed", "Crashed");
-            mod("b.fine", "Fine");
-            crash("a.crashed");
-
-            MainViewModel model = create();
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(model.Mods[0].CanRetry, Is.True);
-                Assert.That(model.Mods[0].Problem, Does.StartWith("Crashed in 2 sessions"));
-                Assert.That(model.Mods[1].CanRetry, Is.False);
-            }
-        }
-
-        [Test]
-        public void TryingACrashedModAgainClearsItsProblem()
-        {
-            mod("a.crashed", "Crashed");
-            crash("a.crashed");
-            MainViewModel model = create();
-
-            model.Mods[0].RetryCommand.Execute(null);
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(model.Mods[0].CanRetry, Is.False);
-                Assert.That(model.Mods[0].Problem, Is.Empty);
-                Assert.That(model.Status, Is.EqualTo("Crashed is tried again the next time osu! starts."));
             }
         }
 
@@ -452,13 +290,6 @@ namespace Torii.Tests
                     """))));
 
             return path;
-        }
-
-        private void crash(string id)
-        {
-            File.WriteAllText(instance.Omamori.FaultsFile, $$"""
-                { "session": 7, "mods": { "{{id}}": { "version": "1.0.0", "strikes": 2, "lastSession": 7, "lastError": "boom" } } }
-                """);
         }
 
         private void placeGame()
@@ -478,17 +309,6 @@ namespace Torii.Tests
             });
 
             return new MainViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), () => osuRunning, launcher);
-        }
-
-        private void mod(string id, string name, string author = "", string capabilities = "\"Cosmetic\"")
-        {
-            string folder = Path.Combine(instance.Omamori.ModsDirectory, id);
-            Directory.CreateDirectory(folder);
-
-            File.WriteAllText(Path.Combine(folder, "Mod.dll"), string.Empty);
-            File.WriteAllText(Path.Combine(folder, "mod.json"), $$"""
-                { "id": "{{id}}", "name": "{{name}}", "version": "1.0.0", "author": "{{author}}", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": [{{capabilities}}] }
-                """);
         }
 
         private void serveReleases(params string[] versions)

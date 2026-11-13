@@ -20,7 +20,7 @@ namespace Torii.Views
             osuCheck.Tick += (_, _) => (DataContext as MainViewModel)?.RefreshOsuRunning();
 
             // Mods can be dropped into the folder by hand
-            Activated += (_, _) => (DataContext as MainViewModel)?.RefreshMods();
+            Activated += (_, _) => (DataContext as MainViewModel)?.ModList.Refresh();
         }
 
         protected override void OnOpened(EventArgs e)

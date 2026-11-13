@@ -22,7 +22,6 @@ namespace Torii.ViewModels
         private readonly ReleaseFeed feed;
         private readonly InstanceSetup setup;
         private readonly Func<bool> osuRunning;
-        private readonly ModLibrary library;
         private readonly GameLauncher launcher;
 
         private string? installedVersion;
@@ -33,21 +32,24 @@ namespace Torii.ViewModels
             this.feed = feed;
             this.setup = setup;
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
-            library = new ModLibrary(instance.Omamori, this.osuRunning);
             this.launcher = launcher ?? new GameLauncher();
+
+            ModList = new ModListViewModel(new ModLibrary(instance.Omamori, this.osuRunning), status => Status = status);
+            ModList.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(ModListViewModel.HasMods))
+                    OnPropertyChanged(nameof(NoMods));
+            };
 
             Summary = string.Empty;
 
             refreshInstance();
             RefreshOsuRunning();
-            RefreshMods();
         }
 
-        public ObservableCollection<ModItemViewModel> Mods { get; } = [];
+        public ModListViewModel ModList { get; }
 
-        public bool HasMods => Mods.Count > 0;
-
-        public bool NoMods => IsSetUp && !HasMods;
+        public bool NoMods => IsSetUp && !ModList.HasMods;
 
         public Func<Task<string?>>? PickModZip { get; set; }
 
@@ -114,73 +116,7 @@ namespace Torii.ViewModels
 
             // The game rewrites the state files while it runs
             if (wasRunning && !OsuRunning)
-                RefreshMods();
-        }
-
-        public void RefreshMods()
-        {
-            var mods = library.List();
-
-            if (mods.Count == Mods.Count && mods.Zip(Mods).All(pair => pair.First.Directory == pair.Second.Mod.Directory))
-            {
-                foreach ((InstalledMod mod, ModItemViewModel row) in mods.Zip(Mods))
-                    row.Mod = mod;
-
-                return;
-            }
-
-            Mods.Clear();
-            foreach (InstalledMod mod in mods)
-                Mods.Add(new ModItemViewModel(this, mod));
-
-            OnPropertyChanged(nameof(HasMods));
-            OnPropertyChanged(nameof(NoMods));
-        }
-
-        internal void SetEnabled(ModItemViewModel row, bool enabled)
-        {
-            try
-            {
-                library.SetEnabled(row.Mod.Manifest!.Id, enabled);
-                Status = $"{row.Label} is {(enabled ? "on" : "off")} the next time osu! starts.";
-            }
-            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
-            {
-                Status = $"Couldn't turn {row.Label} {(enabled ? "on" : "off")}. {e.Message}";
-            }
-
-            RefreshMods();
-            row.Revert();
-        }
-
-        internal void Remove(ModItemViewModel row)
-        {
-            try
-            {
-                library.Remove(row.Mod);
-                Status = $"{row.Label} is removed. Its settings were kept.";
-            }
-            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
-            {
-                Status = $"Couldn't remove {row.Label}. {e.Message}";
-            }
-
-            RefreshMods();
-        }
-
-        internal void Retry(ModItemViewModel row)
-        {
-            try
-            {
-                library.Retry(row.Mod.Manifest!.Id);
-                Status = $"{row.Label} is tried again the next time osu! starts.";
-            }
-            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
-            {
-                Status = $"Couldn't reset {row.Label}. {e.Message}";
-            }
-
-            RefreshMods();
+                ModList.Refresh();
         }
 
         [RelayCommand(CanExecute = nameof(canAddMod))]
@@ -189,17 +125,7 @@ namespace Torii.ViewModels
             if (PickModZip == null || await PickModZip() is not string zip)
                 return;
 
-            try
-            {
-                InstalledMod mod = library.InstallFromZip(zip);
-                Status = $"{mod.Label} {mod.Manifest?.Version} is installed.";
-            }
-            catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException)
-            {
-                Status = $"Couldn't add the mod. {e.Message}";
-            }
-
-            RefreshMods();
+            ModList.AddFromZip(zip);
         }
 
         [RelayCommand]
@@ -246,7 +172,7 @@ namespace Torii.ViewModels
             {
                 IsBusy = false;
                 refreshInstance();
-                RefreshMods();
+                ModList.Refresh();
             }
         }
 
