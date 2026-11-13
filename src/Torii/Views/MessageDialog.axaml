@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:icons="using:Optris.Icons.Avalonia"
         x:Class="Torii.Views.MessageDialog"
         Title="Torii"
         Icon="/Assets/torii.ico"
@@ -10,7 +11,10 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
     <StackPanel Margin="20" Spacing="16">
-        <TextBlock x:Name="MessageText" TextWrapping="Wrap" MaxWidth="440" />
+        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+            <icons:Icon Value="mdi-alert-circle" FontSize="28" Foreground="Orange" VerticalAlignment="Top" />
+            <TextBlock x:Name="MessageText" Grid.Column="1" TextWrapping="Wrap" MaxWidth="400" VerticalAlignment="Center" />
+        </Grid>
         <Button x:Name="OkButton"
                 Content="OK"
                 MinWidth="80"

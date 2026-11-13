@@ -475,6 +475,31 @@ namespace Torii.Tests
         }
 
         [AvaloniaTest]
+        public void EmptyStateShowsOnlyForASetUpInstanceWithoutMods()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            MainWindow notSetUp = show();
+            bool beforeSetUp = emptyHint(notSetUp).IsEffectivelyVisible;
+
+            UiFixture.PlaceGame(alpha);
+            MainWindow window = show();
+            bool empty = emptyHint(window).IsEffectivelyVisible;
+            Rect zone = boundsIn(window, emptyHint(window));
+
+            UiFixture.AddMod(alpha, "one");
+            selected(window).ModList.Refresh();
+            layout(window);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(beforeSetUp, Is.False);
+                Assert.That(empty, Is.True);
+                Assert.That(zone.Width, Is.GreaterThan(0));
+                Assert.That(emptyHint(window).IsEffectivelyVisible, Is.False);
+            }
+        }
+
+        [AvaloniaTest]
         public void SearchBoxIsHiddenWhenThereAreNoMods()
         {
             fixture.Store.Create("alpha");
@@ -566,6 +591,8 @@ namespace Torii.Tests
             [.. window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<Border>().Where(b => b.ContextFlyout is MenuFlyout)];
 
         private static Border modDropLine(MainWindow window) => window.GetVisualDescendants().OfType<Border>().First(b => b.Name == "ModDropLine");
+
+        private static TextBlock emptyHint(MainWindow window) => window.GetVisualDescendants().OfType<TextBlock>().First(t => t.Text == "Drop a mod here");
 
         private static List<ListBoxItem> cards(MainWindow window) => [.. window.GetVisualDescendants().OfType<ListBoxItem>()];
 

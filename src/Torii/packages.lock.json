@@ -84,6 +84,24 @@
         "resolved": "8.0.0",
         "contentHash": "AJy/KVjXgUbgjf6HiI8wAk4DSSq0SCmvXQF8aU6IB+pnIQq+YJvofvMczug2hqO8yEvnQY557ryew66KPpyCsA=="
       },
+      "Optris.Icons.Avalonia": {
+        "type": "Direct",
+        "requested": "[12.0.7, )",
+        "resolved": "12.0.7",
+        "contentHash": "PVNlV/cn8EcOtFsFQhaa0oWcEJTPXKHW/78xpVVPftQTrmHYm5a6m4MBQETW7mmsBTSasyh3/bAxkNAb79eHpA==",
+        "dependencies": {
+          "Avalonia": "12.0.1"
+        }
+      },
+      "Optris.Icons.Avalonia.MaterialDesign": {
+        "type": "Direct",
+        "requested": "[12.0.7, )",
+        "resolved": "12.0.7",
+        "contentHash": "PDQrWld62RT5BQQE6gJ9+OiOCEaB8IUpPVv6Yg0Vr6Jhuv3skCdW8JCj0i5sfGp5QYO03asLbfcFgGwSiC6pFw==",
+        "dependencies": {
+          "Optris.Icons.Avalonia": "12.0.7"
+        }
+      },
       "Velopack": {
         "type": "Direct",
         "requested": "[1.2.161, )",

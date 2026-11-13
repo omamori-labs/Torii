@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Torii.ViewModels"
              xmlns:core="using:Torii.Core.Omamori"
+             xmlns:icons="using:Optris.Icons.Avalonia"
              x:Class="Torii.Views.InstanceView"
              x:DataType="vm:InstanceViewModel">
     <UserControl.Styles>
@@ -51,12 +52,22 @@
         </StackPanel>
 
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,0,0,8" IsVisible="{Binding ModList.HasMods}">
-            <TextBox Text="{Binding ModList.Search}" PlaceholderText="Search mods" />
+            <TextBox Text="{Binding ModList.Search}" PlaceholderText="Search mods">
+                <TextBox.InnerLeftContent>
+                    <icons:Icon Value="mdi-magnify" Opacity="0.6" Margin="10,0,0,0" />
+                </TextBox.InnerLeftContent>
+            </TextBox>
             <ComboBox Grid.Column="1" ItemsSource="{Binding ModList.Filters}" SelectedItem="{Binding ModList.Filter}" MinWidth="110" />
         </Grid>
 
         <Panel>
-            <TextBlock Text="No mods installed." IsVisible="{Binding NoMods}" Opacity="0.6" />
+            <Panel IsVisible="{Binding NoMods}" Width="320" Height="160" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Rectangle Stroke="#40FFFFFF" StrokeThickness="2" StrokeDashArray="4,4" RadiusX="8" RadiusY="8" />
+                <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <icons:Icon Value="mdi-tray-arrow-down" FontSize="36" Opacity="0.6" HorizontalAlignment="Center" />
+                    <TextBlock Text="Drop a mod here" HorizontalAlignment="Center" />
+                </StackPanel>
+            </Panel>
             <TextBlock Text="No mods match." IsVisible="{Binding ModList.NoMatches}" Opacity="0.6" />
 
             <ScrollViewer x:Name="ModScroller" IsVisible="{Binding ModList.HasMods}">
@@ -66,9 +77,21 @@
                             <Border Background="#14FFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
                                 <Border.ContextFlyout>
                                     <MenuFlyout OverlayDismissEventPassThrough="True">
-                                        <MenuItem Header="Remove" Command="{Binding RemoveCommand}" />
-                                        <MenuItem Header="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" />
-                                        <MenuItem Header="Open mod folder" Command="{Binding OpenFolderCommand}" />
+                                        <MenuItem Header="Remove" Command="{Binding RemoveCommand}">
+                                            <MenuItem.Icon>
+                                                <icons:Icon Value="mdi-delete" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}">
+                                            <MenuItem.Icon>
+                                                <icons:Icon Value="mdi-refresh" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
+                                        <MenuItem Header="Open mod folder" Command="{Binding OpenFolderCommand}">
+                                            <MenuItem.Icon>
+                                                <icons:Icon Value="mdi-folder-open" />
+                                            </MenuItem.Icon>
+                                        </MenuItem>
                                     </MenuFlyout>
                                 </Border.ContextFlyout>
                                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
@@ -84,10 +107,15 @@
                                         <TextBlock Text="{Binding Description}"
                                                    IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
                                                    TextWrapping="Wrap" />
-                                        <TextBlock Text="{Binding Problem}"
-                                                   IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                   Foreground="Orange"
-                                                   TextWrapping="Wrap" />
+                                        <Grid ColumnDefinitions="Auto,*"
+                                              ColumnSpacing="6"
+                                              IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                            <icons:Icon Value="mdi-alert" Foreground="Orange" VerticalAlignment="Top" Margin="0,2,0,0" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Problem}"
+                                                       Foreground="Orange"
+                                                       TextWrapping="Wrap" />
+                                        </Grid>
                                     </StackPanel>
 
                                     <ToggleSwitch Grid.Column="1"

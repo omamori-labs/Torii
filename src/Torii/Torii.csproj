@@ -13,6 +13,8 @@
     <PackageReference Include="Avalonia.Themes.Fluent" />
     <PackageReference Include="Avalonia.Fonts.Inter" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Optris.Icons.Avalonia" />
+    <PackageReference Include="Optris.Icons.Avalonia.MaterialDesign" />
     <PackageReference Include="Velopack" />
   </ItemGroup>
 
