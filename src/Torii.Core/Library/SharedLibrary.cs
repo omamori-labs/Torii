@@ -1,0 +1,121 @@
+using System;
+using System.IO;
+using System.Linq;
+using Torii.Core.Lazer;
+
+namespace Torii.Core.Library
+{
+    public sealed class SharedLibrary
+    {
+        private const int error_privilege_not_held = 1314;
+
+        private readonly Func<LazerInstance, string, bool>? elevate;
+        private readonly Func<bool> canLink;
+
+        public SharedLibrary(string directory, Func<LazerInstance, string, bool>? elevate = null)
+            : this(directory, elevate, null)
+        {
+        }
+
+        internal SharedLibrary(string directory, Func<LazerInstance, string, bool>? elevate, Func<bool>? canLink)
+        {
+            Root = Path.GetFullPath(directory);
+            this.elevate = elevate;
+            this.canLink = canLink ?? canCreateLinks;
+        }
+
+        public string Root { get; }
+
+        public static string DefaultDirectory() =>
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Torii", "library");
+
+        public string FilesDirectory => Path.Combine(Root, "files");
+
+        public string DatabaseFile => Path.Combine(Root, "client.realm");
+
+        internal bool IsUsable => !Directory.Exists(Root) || File.Exists(markerFile) || !Directory.EnumerateFileSystemEntries(Root).Any();
+
+        private string markerFile => Path.Combine(Root, "torii-library.txt");
+
+        public void Attach(LazerInstance instance)
+        {
+            Directory.CreateDirectory(Root);
+            Directory.CreateDirectory(instance.Directory);
+
+            if (!File.Exists(markerFile))
+                File.WriteAllText(markerFile, string.Empty);
+
+            if (!canLink())
+            {
+                if (elevate?.Invoke(instance, Root) != true)
+                    throw new InvalidOperationException("Linking the library needs a permission Windows hasn't given: Developer Mode or administrator.");
+
+                return;
+            }
+
+            attach(instance.FilesDirectory, FilesDirectory, isDirectory: true);
+            attach(instance.DatabaseFile, DatabaseFile, isDirectory: false);
+        }
+
+        private static void attach(string local, string shared, bool isDirectory)
+        {
+            FileSystemInfo info = isDirectory ? new DirectoryInfo(local) : new FileInfo(local);
+
+            if (info.LinkTarget is string current)
+            {
+                string resolved = Path.GetFullPath(current, Path.GetDirectoryName(local)!);
+
+                if (!Paths.Same(resolved, shared))
+                    throw new InvalidOperationException($"{local} is linked to {resolved}, which is a different library.");
+
+                return;
+            }
+
+            bool hasLocal = isDirectory ? Directory.Exists(local) : File.Exists(local);
+            bool hasShared = isDirectory ? Directory.Exists(shared) : File.Exists(shared);
+
+            if (hasLocal && hasShared)
+                throw new InvalidOperationException($"{local} and the library both have their own copy.");
+
+            if (hasLocal)
+            {
+                if (isDirectory)
+                    Directory.Move(local, shared);
+                else
+                    File.Move(local, shared);
+            }
+            else if (!hasShared)
+            {
+                if (!isDirectory)
+                    return;
+
+                Directory.CreateDirectory(shared);
+            }
+
+            if (isDirectory)
+                Directory.CreateSymbolicLink(local, shared);
+            else
+                File.CreateSymbolicLink(local, shared);
+        }
+
+        private bool canCreateLinks()
+        {
+            string probe = Path.Combine(Root, $"probe-{Guid.NewGuid():N}");
+
+            try
+            {
+                File.CreateSymbolicLink(probe, Root);
+                return true;
+            }
+            // Symlinks need Developer Mode or admin
+            catch (IOException e) when (OperatingSystem.IsWindows() && (e.HResult & 0xFFFF) == error_privilege_not_held)
+            {
+                return false;
+            }
+            finally
+            {
+                File.Delete(probe);
+            }
+        }
+    }
+}

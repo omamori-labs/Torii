@@ -24,6 +24,10 @@ namespace Torii.Core.Lazer
         // osu!framework only keeps data beside the game when this file exists
         public string PortableMarker => Path.Combine(Directory, "framework.ini");
 
+        public string FilesDirectory => Path.Combine(Directory, "files");
+
+        public string DatabaseFile => Path.Combine(Directory, "client.realm");
+
         public string GameFilesList => Path.Combine(Directory, "torii-game-files.txt");
 
         public OmamoriInstall Omamori => new OmamoriInstall(Directory);

@@ -1,5 +1,6 @@
 using System;
 using Avalonia;
+using Torii.Core.Library;
 using Velopack;
 
 namespace Torii
@@ -7,11 +8,14 @@ namespace Torii
     internal static class Program
     {
         [STAThread]
-        public static void Main(string[] args)
+        public static int Main(string[] args)
         {
             VelopackApp.Build().Run();
 
-            BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+            if (ElevatedLink.TryRun(args, out int exitCode))
+                return exitCode;
+
+            return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
         }
 
         // Previewer finds this by name
