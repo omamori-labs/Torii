@@ -9,7 +9,6 @@ namespace Torii.Core
 {
     internal static class Downloads
     {
-        /// <summary>Downloads to a file and returns its sha256 as lowercase hex. Progress is 0 to 1</summary>
         public static async Task<string> ToFileAsync(HttpClient http, Uri source, string path, long expectedSize, IProgress<double>? progress, CancellationToken cancellation)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, source);

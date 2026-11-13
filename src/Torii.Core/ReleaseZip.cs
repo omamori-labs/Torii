@@ -7,16 +7,13 @@ using System.Reflection.PortableExecutable;
 
 namespace Torii.Core
 {
-    /// <summary>What an Omamori release zip says about itself, read without installing it</summary>
     public static class ReleaseZip
     {
         private const string core_entry = "omamori/core/" + OmamoriInstall.CORE_FILENAME;
 
-        // Omamori's build stamps this on the core, see LazerBuild in its source
+        // Stamped by Omamori's build
         private const string lazer_build_key = "LazerBuild";
 
-        /// <summary>The osu!lazer version the release was built for, as ppy/osu tags it. Null when the core doesn't say</summary>
-        /// <exception cref="InvalidDataException">Not an Omamori release</exception>
         public static string? LazerVersion(string zipPath)
         {
             using ZipArchive archive = Zips.Open(zipPath);

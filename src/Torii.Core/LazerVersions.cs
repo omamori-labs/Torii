@@ -6,7 +6,6 @@ namespace Torii.Core
 {
     internal static class LazerVersions
     {
-        /// <summary>Orders versions like 2026.1005.0-lazer by their numbers. Versions that don't parse compare as equal</summary>
         public static int Compare(string a, string b)
         {
             int[]? left = parse(a);

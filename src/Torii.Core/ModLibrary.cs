@@ -9,7 +9,6 @@ using System.Text.Json.Nodes;
 
 namespace Torii.Core
 {
-    /// <summary>The mods in one install, as Omamori will see them next time osu! starts</summary>
     public sealed class ModLibrary
     {
         // FaultHistory.STRIKES_TO_SKIP in Omamori
@@ -31,7 +30,6 @@ namespace Torii.Core
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(install.DataDirectory));
         }
 
-        /// <summary>In the order Omamori discovers them. Folders without a mod.json aren't mods</summary>
         public IReadOnlyList<InstalledMod> List()
         {
             var mods = new List<InstalledMod>();
@@ -56,8 +54,6 @@ namespace Torii.Core
             return mods;
         }
 
-        /// <summary>Takes effect the next time osu! starts</summary>
-        /// <exception cref="InvalidOperationException">osu! is running and would overwrite the change</exception>
         public void SetEnabled(string id, bool enabled)
         {
             requireOsuClosed();
@@ -81,8 +77,6 @@ namespace Torii.Core
             writeState(install.SettingsFile, settings);
         }
 
-        /// <summary>Clears a mod's crash history so Omamori loads it again</summary>
-        /// <exception cref="InvalidOperationException">osu! is running and would overwrite the change</exception>
         public void Retry(string id)
         {
             requireOsuClosed();
@@ -93,8 +87,6 @@ namespace Torii.Core
                 writeState(install.FaultsFile, faults);
         }
 
-        /// <summary>Deletes the mod's folder. Its settings and data under omamori/ are kept</summary>
-        /// <exception cref="InvalidOperationException">osu! is running and has the mod loaded</exception>
         public void Remove(InstalledMod mod)
         {
             requireOsuClosed();
@@ -105,19 +97,16 @@ namespace Torii.Core
             if (Directory.Exists(mod.Directory))
                 Directory.Delete(mod.Directory, recursive: true);
 
-            // So installing it again later doesn't start turned off
+            // Otherwise a reinstall starts turned off
             if (mod.Manifest != null && !List().Any(m => m.Manifest?.Id == mod.Manifest.Id))
                 SetEnabled(mod.Manifest.Id, true);
         }
 
-        /// <summary>Installs or updates a mod from a zip with a mod.json at its root or in its only top folder</summary>
-        /// <exception cref="InvalidDataException">Not an Omamori mod. Nothing was changed</exception>
-        /// <exception cref="InvalidOperationException">osu! is running and may have the old version loaded</exception>
         public InstalledMod InstallFromZip(string zipPath)
         {
             requireOsuClosed();
 
-            // Not in mods/, a leftover there would show up as a mod
+            // Not in mods/, a leftover there would get listed as a mod
             string staging = Path.Combine(install.Root, $".torii-{Guid.NewGuid():N}");
 
             try
@@ -173,7 +162,7 @@ namespace Torii.Core
             }
         }
 
-        // Omamori's build packs mods as <id>/mod.json, a hand-made zip may have it at the root
+        // Omamori packs mods as <id>/mod.json
         private static string? modFolder(List<string> names)
         {
             if (names.Contains(ModManifestReader.FILENAME))
@@ -233,7 +222,7 @@ namespace Torii.Core
             if (faults[manifest.Id] is not JsonObject record)
                 return null;
 
-            // A record for another version is dropped by Omamori on the next launch
+            // Omamori drops records for other versions
             if (text(record["version"]) != manifest.Version)
                 return null;
 
@@ -260,7 +249,7 @@ namespace Torii.Core
 
         private JsonObject readFaults() => readState(install.FaultsFile)["mods"] as JsonObject ?? [];
 
-        // Omamori starts fresh when a state file is missing or unreadable, so the same goes here
+        // Omamori starts fresh on a bad state file too
         private static JsonObject readState(string path)
         {
             try

@@ -9,7 +9,6 @@ namespace Torii.Core
     {
         public const string FILENAME = "mod.json";
 
-        /// <exception cref="InvalidDataException">The message says what is wrong with the mod.json</exception>
         public static ModInfo Read(string path)
         {
             try
@@ -61,7 +60,7 @@ namespace Torii.Core
             return list;
         }
 
-        // Both patterns are from Omamori's schemas/mod.schema.json
+        // From Omamori's mod.schema.json
         [GeneratedRegex(@"^[a-z0-9]+([._-][a-z0-9]+)*$")]
         private static partial Regex idPattern();
 

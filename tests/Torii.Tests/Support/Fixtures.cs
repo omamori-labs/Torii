@@ -13,7 +13,6 @@ namespace Torii.Tests
     {
         public static string Sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
-        /// <summary>An Omamori release zip whose core is a real assembly stamped with the lazer version, null for no stamp</summary>
         public static byte[] OmamoriZip(string? lazerVersion) => Zip(
             ("rulesets/osu.Game.Rulesets.Omamori.dll", "bootstrap"u8.ToArray()),
             ("omamori/core/Omamori.Core.dll", Core(lazerVersion)));
@@ -36,14 +35,12 @@ namespace Torii.Tests
             return stream.ToArray();
         }
 
-        /// <summary>Laid out like a Velopack package: metadata at the root, the game url-encoded under lib/app</summary>
         public static byte[] LazerPackage(string version) => Zip(
             ("osulazer.nuspec", "metadata"u8.ToArray()),
             ("lib/app/osu%21.exe", "exe"u8.ToArray()),
             ("lib/app/osu.Game.dll", "dll"u8.ToArray()),
             ("lib/app/sq.version", Encoding.UTF8.GetBytes($"<package><metadata><id>osulazer</id><version>{version}</version></metadata></package>")));
 
-        /// <summary>GitHub's answer for one ppy/osu release holding this platform's package</summary>
         public static byte[] LazerRelease(string version, byte[] package, Uri download) => Encoding.UTF8.GetBytes($$"""
             { "tag_name": "{{version}}", "assets": [{ "name": "{{LazerFeed.AssetName(version)}}", "size": {{package.Length}}, "digest": "sha256:{{Sha256(package)}}", "browser_download_url": "{{download}}" }] }
             """);

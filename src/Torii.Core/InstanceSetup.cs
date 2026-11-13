@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Torii.Core
 {
-    /// <summary>Makes an instance run a given Omamori release, bringing in the osu! version that release was built for</summary>
     public sealed class InstanceSetup
     {
         private readonly ReleaseInstaller releases;
@@ -22,10 +21,6 @@ namespace Torii.Core
             this.isRunning = isRunning ?? (instance => OsuProcess.IsRunningIn(instance.Directory));
         }
 
-        /// <summary>Sets up a new instance, or updates an existing one and keeps its data and mods</summary>
-        /// <exception cref="InvalidOperationException">The instance is running, or it has a newer osu! than the release needs</exception>
-        /// <exception cref="InvalidDataException">A download can't be trusted or isn't what it should be</exception>
-        /// <exception cref="HttpRequestException">A download failed</exception>
         public async Task SetUpAsync(LazerInstance instance, OmamoriRelease release, IProgress<SetupProgress>? progress = null, CancellationToken cancellation = default)
         {
             if (isRunning(instance))
@@ -57,7 +52,7 @@ namespace Torii.Core
         private static StageProgress? stage(IProgress<SetupProgress>? progress, SetupStage stage) =>
             progress == null ? null : new StageProgress(progress, stage);
 
-        // Not Progress<T>, that one reports on another thread and loses the order
+        // Progress<T> reports on another thread and loses the order
         private sealed class StageProgress : IProgress<double>
         {
             private readonly IProgress<SetupProgress> progress;

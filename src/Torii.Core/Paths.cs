@@ -12,7 +12,7 @@ namespace Torii.Core
 
         public static bool Same(string a, string b) => string.Equals(a, b, comparison);
 
-        /// <summary>Zips made on Windows can use either separator</summary>
+        // Zips made on Windows can use backslashes
         public static string EntryName(string fullName) => fullName.Replace('\\', '/');
     }
 }

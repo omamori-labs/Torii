@@ -118,7 +118,6 @@ namespace Torii.Tests
         [Test]
         public async Task FailedSetupSaysWhy()
         {
-            // No game to download for the release
             serveReleases("2.0.0");
             MainViewModel model = create();
             await model.LoadReleasesCommand.ExecuteAsync(null);
@@ -488,7 +487,6 @@ namespace Torii.Tests
                 """);
         }
 
-        // Every release is the same zip, built for the one lazer version
         private void serveReleases(params string[] versions)
         {
             byte[] zip = Fixtures.OmamoriZip(lazer);

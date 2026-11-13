@@ -28,7 +28,7 @@ jobs:
           cache: true
           cache-dependency-path: "**/packages.lock.json"
 
-      # CI=true makes the restore locked, so a package that isn't in the lock files fails here
+      # CI=true locks the restore
       - name: build and test
         run: dotnet test Torii.slnx -c Release --logger trx --results-directory artifacts/test-results
 

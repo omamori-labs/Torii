@@ -30,10 +30,8 @@ namespace Torii
 
         public bool Patches => Mod.Manifest?.Patches == true;
 
-        /// <summary>A mod that can't load as it is has nothing to switch</summary>
         public bool CanToggle => Mod.State != ModState.Problem;
 
-        /// <summary>Omamori skips it after repeated crashes until its history is cleared</summary>
         public bool CanRetry => Mod.State == ModState.Crashed;
 
         [RelayCommand]
@@ -42,7 +40,7 @@ namespace Torii
         [RelayCommand]
         public void Retry() => owner.Retry(this);
 
-        // A crashed mod is still on in settings, Omamori is the one skipping it
+        // Crashed mods are still on in settings
         public bool IsOn
         {
             get => Mod.State is ModState.On or ModState.Crashed;
@@ -53,7 +51,6 @@ namespace Torii
             }
         }
 
-        /// <summary>Puts the switch back after a change that didn't go through</summary>
         public void Revert() => OnPropertyChanged(nameof(IsOn));
     }
 }

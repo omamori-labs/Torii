@@ -80,7 +80,6 @@ namespace Torii.Tests
             Assert.That(() => ReleaseZip.LazerVersion(path), Throws.InstanceOf<InvalidDataException>());
         }
 
-        // A real assembly carrying one AssemblyMetadata attribute, the way Omamori's build stamps its core
         private static byte[] core(string key, string value)
         {
             var builder = new PersistedAssemblyBuilder(new AssemblyName("Omamori.Core"), typeof(object).Assembly);

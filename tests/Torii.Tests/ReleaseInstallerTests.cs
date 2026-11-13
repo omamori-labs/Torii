@@ -118,7 +118,7 @@ namespace Torii.Tests
 
         private static OmamoriRelease release(string? hash) => new OmamoriRelease("1.0.0", false, download, hash, 0, null);
 
-        // Progress<T> reports on another thread and loses the order
+        // Progress<T> loses the order
         private sealed class RecordingProgress : IProgress<double>
         {
             public List<double> Reported { get; } = [];

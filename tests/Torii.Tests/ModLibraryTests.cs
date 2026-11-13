@@ -388,7 +388,7 @@ namespace Torii.Tests
             return path;
         }
 
-        // Same shape Omamori's FaultHistory writes
+        // What Omamori's FaultHistory writes
         private void faults(string id, string version, int strikes, string? alsoCrashed = null)
         {
             Directory.CreateDirectory(install.Root);

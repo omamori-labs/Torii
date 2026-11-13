@@ -10,7 +10,6 @@ using System.Threading.Tasks;
 
 namespace Torii.Core
 {
-    /// <summary>Finds osu!lazer builds on ppy/osu's GitHub releases</summary>
     public sealed partial class LazerFeed
     {
         private const string sha256_prefix = "sha256:";
@@ -22,8 +21,6 @@ namespace Torii.Core
             this.http = http;
         }
 
-        /// <summary>The package Velopack would install on this platform</summary>
-        /// <exception cref="PlatformNotSupportedException">macOS</exception>
         public static string AssetName(string version)
         {
             if (OperatingSystem.IsWindows())
@@ -37,10 +34,9 @@ namespace Torii.Core
 
         public static Uri ReleaseUri(string version) => new Uri($"https://api.github.com/repos/ppy/osu/releases/tags/{Uri.EscapeDataString(version)}");
 
-        /// <exception cref="InvalidDataException">That version can't be downloaded or has no hash to check it against</exception>
         public async Task<LazerPackage> FindAsync(string version, CancellationToken cancellation = default)
         {
-            // It ends up in a url, and comes from inside a downloaded file
+            // Goes into a url
             if (!versionPattern().IsMatch(version))
                 throw new InvalidDataException($"{version} isn't an osu! version.");
 
@@ -58,7 +54,6 @@ namespace Torii.Core
             return Parse(await response.Content.ReadAsStringAsync(cancellation).ConfigureAwait(false), version, AssetName(version));
         }
 
-        /// <exception cref="InvalidDataException">The release has no such asset, or it has no sha256</exception>
         public static LazerPackage Parse(string json, string version, string assetName)
         {
             try
@@ -77,7 +72,6 @@ namespace Torii.Core
 
                     string? digest = text(asset, "digest");
 
-                    // The game is run as is, so it has to be the file ppy published
                     if (digest == null || !digest.StartsWith(sha256_prefix, StringComparison.OrdinalIgnoreCase) || digest.Length != sha256_prefix.Length + 64)
                         throw new InvalidDataException($"osu! {version} has no checksum to check the download against.");
 

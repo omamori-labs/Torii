@@ -5,12 +5,10 @@ using System.IO;
 
 namespace Torii.Core
 {
-    /// <summary>While lazer runs it locks Omamori's files and rewrites the state files from memory</summary>
     public static class OsuProcess
     {
         public const string PROCESS_NAME = "osu!";
 
-        /// <summary>Whether the copy of the game in this folder is open. The player's own osu! doesn't count</summary>
         public static bool IsRunningIn(string directory)
         {
             Process[] processes = Process.GetProcessesByName(PROCESS_NAME);
@@ -32,7 +30,6 @@ namespace Torii.Core
             }
         }
 
-        /// <summary>A process that can't be inspected counts as being in the folder</summary>
         internal static bool IsIn(string? executable, string directory) =>
             executable == null || Paths.IsInside(Path.GetFullPath(directory), Path.GetFullPath(executable));
 
@@ -49,7 +46,7 @@ namespace Torii.Core
             }
             catch (Win32Exception)
             {
-                // Access denied, so it can't be ruled out
+                // Access denied, can't rule it out
                 return true;
             }
         }

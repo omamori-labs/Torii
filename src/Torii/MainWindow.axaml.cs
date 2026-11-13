@@ -18,7 +18,7 @@ namespace Torii
 
             osuCheck.Tick += (_, _) => (DataContext as MainViewModel)?.RefreshOsuRunning();
 
-            // Mods can be dropped into the folder by hand while Torii is in the background
+            // Mods can be dropped into the folder by hand
             Activated += (_, _) => (DataContext as MainViewModel)?.RefreshMods();
         }
 

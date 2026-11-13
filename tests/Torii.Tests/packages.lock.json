@@ -277,7 +277,8 @@
           "Avalonia.Fonts.Inter": "[12.1.6, )",
           "Avalonia.Themes.Fluent": "[12.1.6, )",
           "CommunityToolkit.Mvvm": "[8.4.2, )",
-          "Torii.Core": "[1.0.0, )"
+          "Torii.Core": "[1.0.0, )",
+          "Velopack": "[1.2.161, )"
         }
       },
       "torii.core": {
@@ -331,6 +332,12 @@
         "requested": "[8.4.2, )",
         "resolved": "8.4.2",
         "contentHash": "WadCzGEc2U+3e20avRLng4qNtt4zoOGWrdUISqJWrHe3/FSnrYjuM5Sb4yQb09LhkBXrrI4Zt3dLKgRMbItsrg=="
+      },
+      "Velopack": {
+        "type": "CentralTransitive",
+        "requested": "[1.2.161, )",
+        "resolved": "1.2.161",
+        "contentHash": "OpHNacIumnkhaaX3ZlQ/TCR4YPOJvud2/PAOoWb6o+mIrLwIVA275I5wAgt4q/1O2VrJeDwR1qFQyqzG4lUArg=="
       }
     },
     "net10.0/linux-x64": {

@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 
 namespace Torii.Tests
 {
-    // Answers every request itself so tests never hit the network
     internal sealed class StubHandler : HttpMessageHandler
     {
         private readonly HttpStatusCode status;

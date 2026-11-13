@@ -4,10 +4,9 @@ using System.IO;
 
 namespace Torii.Core
 {
-    /// <summary>Where Omamori's files go in one osu! data folder. Mirrors Layout in Omamori's source</summary>
+    // Mirrors Layout in Omamori
     public sealed class OmamoriInstall
     {
-        /// <summary>The bootstrap, which lazer loads as a ruleset</summary>
         public const string RULESET_FILENAME = "osu.Game.Rulesets.Omamori.dll";
 
         public const string CORE_FILENAME = "Omamori.Core.dll";
@@ -23,7 +22,6 @@ namespace Torii.Core
 
         public string RulesetAssembly => Path.Combine(RulesetsDirectory, RULESET_FILENAME);
 
-        /// <summary>Loader, mods and state files</summary>
         public string Root => Path.Combine(DataDirectory, "omamori");
 
         public string CoreDirectory => Path.Combine(Root, "core");
@@ -32,16 +30,12 @@ namespace Torii.Core
 
         public string ModsDirectory => Path.Combine(Root, "mods");
 
-        /// <summary>Mods the player turned off</summary>
         public string SettingsFile => Path.Combine(Root, "settings.json");
 
-        /// <summary>Crash history per mod</summary>
         public string FaultsFile => Path.Combine(Root, "faults.json");
 
-        /// <summary>Needs both the bootstrap and the core it starts</summary>
         public bool IsInstalled => File.Exists(RulesetAssembly) && File.Exists(CoreAssembly);
 
-        /// <summary>Null when not installed or the core has no version stamp</summary>
         public string? ReadVersion()
         {
             if (!IsInstalled)

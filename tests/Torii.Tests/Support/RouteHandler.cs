@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 
 namespace Torii.Tests
 {
-    // Serves a fixed set of urls and remembers what was asked for, so tests never hit the network
     internal sealed class RouteHandler : HttpMessageHandler
     {
         private readonly Dictionary<Uri, byte[]> routes = [];

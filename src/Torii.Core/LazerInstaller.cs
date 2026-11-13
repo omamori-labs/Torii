@@ -9,10 +9,8 @@ using System.Threading.Tasks;
 
 namespace Torii.Core
 {
-    /// <summary>Puts osu!lazer into an instance folder. The instance must not be running</summary>
     public sealed class LazerInstaller
     {
-        // Where a Velopack package keeps the app
         private const string package_prefix = "lib/app/";
 
         private readonly HttpClient http;
@@ -24,10 +22,6 @@ namespace Torii.Core
             this.temporaryDirectory = temporaryDirectory ?? Path.GetTempPath();
         }
 
-        /// <summary>Progress is 0 to 1. Cancelling stops the download, not the install</summary>
-        /// <exception cref="InvalidDataException">Hash wrong or not an osu! package. Nothing was changed</exception>
-        /// <exception cref="InvalidOperationException">The instance has a newer osu! than the package</exception>
-        /// <exception cref="HttpRequestException">Download failed. Nothing was changed</exception>
         public async Task InstallAsync(LazerInstance instance, LazerPackage package, IProgress<double>? progress = null, CancellationToken cancellation = default)
         {
             refuseDowngrade(instance, package.Version);
@@ -49,9 +43,6 @@ namespace Torii.Core
             }
         }
 
-        /// <summary>Installs or updates the game files. Everything else in the folder is the player's data and is kept</summary>
-        /// <exception cref="InvalidDataException">Not an osu! package. Nothing was changed</exception>
-        /// <exception cref="PlatformNotSupportedException">Only the Windows package can be extracted for now</exception>
         public static void InstallFromPackage(LazerInstance instance, string packagePath)
         {
             if (!OperatingSystem.IsWindows())
@@ -68,7 +59,7 @@ namespace Torii.Core
                 if (!name.StartsWith(package_prefix, StringComparison.Ordinal) || name.EndsWith('/'))
                     continue;
 
-                // Package paths are url-encoded, osu!.exe is osu%21.exe in there
+                // Paths are url-encoded, osu!.exe is osu%21.exe
                 string relative = Uri.UnescapeDataString(name[package_prefix.Length..]);
                 string destination = Path.GetFullPath(Path.Combine(instance.Directory, relative));
 
@@ -96,7 +87,7 @@ namespace Torii.Core
                 File.WriteAllText(instance.PortableMarker, string.Empty);
         }
 
-        // The folder is also the data folder, so only what the last install extracted goes
+        // Data lives in the same folder, only delete what was extracted
         private static void removeGameFiles(LazerInstance instance)
         {
             if (!File.Exists(instance.GameFilesList))
@@ -111,7 +102,7 @@ namespace Torii.Core
             }
         }
 
-        // An older osu! may not be able to open data a newer one has written
+        // Older osu! can't always open newer data
         private static void refuseDowngrade(LazerInstance instance, string version)
         {
             string? installed = instance.ReadVersion();

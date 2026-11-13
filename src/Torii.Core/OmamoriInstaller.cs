@@ -5,11 +5,8 @@ using System.Linq;
 
 namespace Torii.Core
 {
-    /// <summary>Installs and removes the loader. osu! must be closed, it keeps these files open</summary>
     public static class OmamoriInstaller
     {
-        /// <summary>Installs or updates. Mods, their settings and data, and state files are left alone</summary>
-        /// <exception cref="InvalidDataException">Not an Omamori release. Nothing was changed</exception>
         public static void InstallFromZip(OmamoriInstall install, string zipPath)
         {
             using ZipArchive archive = Zips.Open(zipPath);
@@ -28,7 +25,7 @@ namespace Torii.Core
             if (!files.Any(f => Paths.Same(f.Destination, install.RulesetAssembly)) || !files.Any(f => Paths.Same(f.Destination, install.CoreAssembly)))
                 throw new InvalidDataException("This isn't an Omamori release, it has no loader in it.");
 
-            // Otherwise dlls dropped by the new release would still get loaded
+            // Stale dlls would still get loaded
             if (Directory.Exists(install.CoreDirectory))
                 Directory.Delete(install.CoreDirectory, recursive: true);
 
@@ -39,7 +36,6 @@ namespace Torii.Core
             }
         }
 
-        /// <summary>Removes the loader, and with <paramref name="removeMods"/> everything else in omamori/ too</summary>
         public static void Uninstall(OmamoriInstall install, bool removeMods = false)
         {
             if (Directory.Exists(install.RulesetsDirectory))
@@ -63,7 +59,6 @@ namespace Torii.Core
         {
             string path = Path.GetFullPath(Path.Combine(install.DataDirectory, name));
 
-            // Everything else under omamori/ belongs to the player: mods, config, data, state files
             if (!Paths.IsInside(install.RulesetsDirectory, path) && !Paths.IsInside(install.CoreDirectory, path))
                 throw new InvalidDataException($"This isn't an Omamori release, it has {name} in it.");
 

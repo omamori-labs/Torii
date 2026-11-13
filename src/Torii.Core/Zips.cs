@@ -5,7 +5,6 @@ namespace Torii.Core
 {
     internal static class Zips
     {
-        /// <exception cref="InvalidDataException">Not a zip</exception>
         public static ZipArchive Open(string path)
         {
             try

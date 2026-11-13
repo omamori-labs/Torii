@@ -277,7 +277,6 @@ namespace Torii.Tests
         {
             Assert.That(() => library.InstallFromZip(zipPath), Throws.InstanceOf<InvalidDataException>());
 
-            // Nothing half-installed and no staging folder left behind
             if (Directory.Exists(install.Root))
                 Assert.That(Directory.EnumerateDirectories(install.Root).Select(Path.GetFileName), Has.None.Not.EqualTo("mods"));
         }

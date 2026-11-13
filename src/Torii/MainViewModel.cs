@@ -43,13 +43,10 @@ namespace Torii
 
         public bool HasMods => Mods.Count > 0;
 
-        /// <summary>Before setup there is nowhere for mods to go, so saying there are none is noise</summary>
         public bool NoMods => IsSetUp && !HasMods;
 
-        /// <summary>Set by the window, returns the zip the player picked or null</summary>
         public Func<Task<string?>>? PickModZip { get; set; }
 
-        /// <summary>Whether anything in the instance may be changed right now</summary>
         public bool CanEdit => !IsBusy && !OsuRunning;
 
         public ObservableCollection<OmamoriRelease> Releases { get; } = [];
@@ -63,7 +60,6 @@ namespace Torii
         [NotifyCanExecuteChangedFor(nameof(InstallCommand))]
         public partial OmamoriRelease? SelectedRelease { get; set; }
 
-        /// <summary>Whether there is a game to play</summary>
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(NoMods))]
         [NotifyCanExecuteChangedFor(nameof(PlayCommand), nameof(AddModCommand))]
@@ -74,13 +70,11 @@ namespace Torii
         [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand))]
         public partial bool IsBusy { get; private set; }
 
-        /// <summary>The instance's game, the player's own osu! doesn't count</summary>
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
         [NotifyCanExecuteChangedFor(nameof(InstallCommand), nameof(PlayCommand), nameof(AddModCommand))]
         public partial bool OsuRunning { get; private set; }
 
-        /// <summary>Progress of the current download, 0 to 1</summary>
         [ObservableProperty]
         public partial double Progress { get; private set; }
 
@@ -100,7 +94,7 @@ namespace Torii
                 if (SelectedRelease.Version == installedVersion)
                     return "Reinstall";
 
-                // Newest first. A version that isn't a release (a local build) has no place in the list
+                // Local builds aren't in the list
                 int installed = Releases.ToList().FindIndex(r => r.Version == installedVersion);
                 if (installed < 0)
                     return "Install";
@@ -109,18 +103,16 @@ namespace Torii
             }
         }
 
-        /// <summary>Called on a timer, the game can be opened or closed at any point</summary>
         public void RefreshOsuRunning()
         {
             bool wasRunning = OsuRunning;
             OsuRunning = osuRunning();
 
-            // The game writes the state files, so what's on screen may be stale once it closes
+            // The game rewrites the state files while it runs
             if (wasRunning && !OsuRunning)
                 RefreshMods();
         }
 
-        /// <summary>Rereads the mods folder. Rows are updated in place when the same mods are still there</summary>
         public void RefreshMods()
         {
             var mods = library.List();
@@ -278,7 +270,7 @@ namespace Torii
 
         private void showProgress(OmamoriRelease release, SetupProgress progress)
         {
-            // Progress<T> can deliver the last report after the setup has finished
+            // Progress<T> can fire late
             if (!IsBusy)
                 return;
 

@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 
 namespace Torii.Core
 {
-    /// <summary>Omamori's releases from GitHub's releases API</summary>
     public sealed class ReleaseFeed
     {
         private const string sha256_prefix = "sha256:";
@@ -24,7 +23,6 @@ namespace Torii.Core
 
         public static Uri GitHub { get; } = new Uri("https://api.github.com/repos/omamori-labs/Omamori/releases?per_page=30");
 
-        /// <summary>Newest first</summary>
         public async Task<IReadOnlyList<OmamoriRelease>> ListAsync(CancellationToken cancellation = default)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, source);
@@ -39,8 +37,6 @@ namespace Torii.Core
             return Parse(await response.Content.ReadAsStringAsync(cancellation).ConfigureAwait(false));
         }
 
-        /// <summary>Skips drafts and releases without an Omamori zip</summary>
-        /// <exception cref="JsonException">Not a list of releases, e.g. a rate limit error</exception>
         public static IReadOnlyList<OmamoriRelease> Parse(string json)
         {
             using JsonDocument document = JsonDocument.Parse(json);
@@ -79,7 +75,6 @@ namespace Torii.Core
                 if (asset.ValueKind != JsonValueKind.Object || !string.Equals(text(asset, "name"), zip, StringComparison.OrdinalIgnoreCase))
                     continue;
 
-                // Don't download something that runs inside osu! over plain http
                 if (!Uri.TryCreate(text(asset, "browser_download_url"), UriKind.Absolute, out Uri? download) || download.Scheme != Uri.UriSchemeHttps)
                     return null;
 

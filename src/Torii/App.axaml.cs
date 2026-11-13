@@ -16,7 +16,7 @@ namespace Torii
         {
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
-                // A folder on the command line is for trying Torii against another instance
+                // Instance folder can be passed in, handy for testing
                 string folder = desktop.Args is [string given, ..] ? given : LazerInstance.DefaultDirectory();
 
                 desktop.MainWindow = new MainWindow
@@ -24,6 +24,8 @@ namespace Torii
                     DataContext = new MainViewModel(new LazerInstance(folder), new ReleaseFeed(http), new InstanceSetup(http)),
                 };
             }
+
+            _ = SelfUpdate.RunAsync();
 
             base.OnFrameworkInitializationCompleted();
         }

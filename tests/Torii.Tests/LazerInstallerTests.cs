@@ -198,7 +198,7 @@ namespace Torii.Tests
 
         private static string sha256(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
 
-        // Laid out like a Velopack package: metadata at the root, the game url-encoded under lib/app
+        // Same layout as a Velopack package
         private string package(string version, params string[] extraEntries)
         {
             string path = Path.Combine(directory, $"{Guid.NewGuid():N}.nupkg");
