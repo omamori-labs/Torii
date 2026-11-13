@@ -11,11 +11,13 @@ namespace Torii.ViewModels
     {
         private readonly ModLibrary library;
         private readonly Action<string?> report;
+        private readonly Action<string> problem;
 
-        public ModListViewModel(ModLibrary library, Action<string?> report)
+        public ModListViewModel(ModLibrary library, Action<string?> report, Action<string>? problem = null)
         {
             this.library = library;
             this.report = report;
+            this.problem = problem ?? (message => report(message));
 
             Refresh();
         }
@@ -52,7 +54,7 @@ namespace Torii.ViewModels
             }
             catch (Exception e) when (e is InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                report($"Couldn't add the mod. {e.Message}");
+                problem($"Couldn't add the mod. {e.Message}");
             }
 
             Refresh();
@@ -67,7 +69,7 @@ namespace Torii.ViewModels
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                report($"Couldn't turn {row.Label} {(enabled ? "on" : "off")}. {e.Message}");
+                problem($"Couldn't turn {row.Label} {(enabled ? "on" : "off")}. {e.Message}");
             }
 
             Refresh();
@@ -83,7 +85,7 @@ namespace Torii.ViewModels
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                report($"Couldn't remove {row.Label}. {e.Message}");
+                problem($"Couldn't remove {row.Label}. {e.Message}");
             }
 
             Refresh();
@@ -98,7 +100,7 @@ namespace Torii.ViewModels
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                report($"Couldn't reset {row.Label}. {e.Message}");
+                problem($"Couldn't reset {row.Label}. {e.Message}");
             }
 
             Refresh();

@@ -41,8 +41,10 @@ namespace Torii.ViewModels
 
         public Func<Task<string?>>? PickOsuFolder { get; set; }
 
+        public Func<string, Task>? ShowProblem { get; set; }
+
         [ObservableProperty]
-        [NotifyCanExecuteChangedFor(nameof(AskDeleteCommand))]
+        [NotifyCanExecuteChangedFor(nameof(DeleteCommand))]
         public partial InstanceViewModel? Selected { get; set; }
 
         [ObservableProperty]
@@ -55,12 +57,6 @@ namespace Torii.ViewModels
         [ObservableProperty]
         [NotifyCanExecuteChangedFor(nameof(CreateInstanceCommand))]
         public partial string? NewNameProblem { get; private set; }
-
-        [ObservableProperty]
-        public partial bool ConfirmingDelete { get; private set; }
-
-        [ObservableProperty]
-        public partial string? Problem { get; private set; }
 
         public async Task RefreshAsync()
         {
@@ -107,23 +103,10 @@ namespace Torii.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(canDelete))]
-        public void AskDelete()
-        {
-            Problem = null;
-            ConfirmingDelete = true;
-        }
-
-        [RelayCommand]
-        public void CancelDelete() => ConfirmingDelete = false;
-
-        [RelayCommand]
-        public void ConfirmDelete()
+        public async Task DeleteAsync()
         {
             if (Selected is not { } doomed || !canDelete())
-            {
-                ConfirmingDelete = false;
                 return;
-            }
 
             try
             {
@@ -131,8 +114,7 @@ namespace Torii.ViewModels
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                Problem = $"Couldn't delete {doomed.Name}. {e.Message}";
-                ConfirmingDelete = false;
+                await askProblem($"Couldn't delete {doomed.Name}. {e.Message}");
                 return;
             }
 
@@ -153,9 +135,6 @@ namespace Torii.ViewModels
                 newValue.PropertyChanged += selectedChanged;
                 _ = newValue.EnsureReleasesAsync();
             }
-
-            ConfirmingDelete = false;
-            Problem = null;
         }
 
         private static bool sameFolder(LazerInstance a, LazerInstance b) =>
@@ -168,18 +147,21 @@ namespace Torii.ViewModels
         private void selectedChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName is nameof(InstanceViewModel.IsBusy) or nameof(InstanceViewModel.OsuRunning))
-                AskDeleteCommand.NotifyCanExecuteChanged();
+                DeleteCommand.NotifyCanExecuteChanged();
         }
 
         private Task<string?> askModZip() => PickModZip?.Invoke() ?? Task.FromResult<string?>(null);
 
         private Task<string?> askOsuFolder() => PickOsuFolder?.Invoke() ?? Task.FromResult<string?>(null);
 
+        private Task askProblem(string message) => ShowProblem?.Invoke(message) ?? Task.CompletedTask;
+
         private InstanceViewModel wrap(LazerInstance instance)
         {
             InstanceViewModel model = createInstance(instance);
             model.PickModZip = askModZip;
             model.PickOsuFolder = askOsuFolder;
+            model.ShowProblem = askProblem;
 
             return model;
         }

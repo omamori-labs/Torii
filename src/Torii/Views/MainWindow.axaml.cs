@@ -36,6 +36,7 @@ namespace Torii.Views
 
             model.PickModZip = pickModZip;
             model.PickOsuFolder = pickOsuFolder;
+            model.ShowProblem = message => MessageDialog.ShowAsync(this, message);
 
             model.PropertyChanged += (_, args) =>
             {

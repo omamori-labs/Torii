@@ -11,17 +11,19 @@ namespace Torii.Core.Library
 
         private readonly Func<LazerInstance, string, bool>? elevate;
         private readonly Func<bool> canLink;
+        private readonly Func<Func<string, bool>, string?> running;
 
         public SharedLibrary(string directory, Func<LazerInstance, string, bool>? elevate = null)
-            : this(directory, elevate, null)
+            : this(directory, elevate, null, null)
         {
         }
 
-        internal SharedLibrary(string directory, Func<LazerInstance, string, bool>? elevate, Func<bool>? canLink)
+        internal SharedLibrary(string directory, Func<LazerInstance, string, bool>? elevate, Func<bool>? canLink, Func<Func<string, bool>, string?>? running = null)
         {
             Root = Path.GetFullPath(directory);
             this.elevate = elevate;
             this.canLink = canLink ?? canCreateLinks;
+            this.running = running ?? OsuProcess.FindRunning;
         }
 
         public string Root { get; }
@@ -58,6 +60,8 @@ namespace Torii.Core.Library
             attach(instance.FilesDirectory, FilesDirectory, isDirectory: true);
             attach(instance.DatabaseFile, DatabaseFile, isDirectory: false);
         }
+
+        public string? FindRunningInstance() => running(linksHere);
 
         public string? ReadVersion()
         {
@@ -96,6 +100,9 @@ namespace Torii.Core.Library
 
             return info.LinkTarget is string current ? Path.GetFullPath(current, Path.GetDirectoryName(local)!) : null;
         }
+
+        private bool linksHere(string directory) =>
+            target(Path.Combine(directory, "files"), isDirectory: true) is string resolved && Paths.Same(resolved, FilesDirectory);
 
         private static bool isDone(string local, string shared, bool isDirectory) =>
             target(local, isDirectory) is string resolved

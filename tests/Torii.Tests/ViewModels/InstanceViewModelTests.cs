@@ -35,6 +35,10 @@ namespace Torii.Tests
         private bool linkAllowed;
         private string? realOsuData;
         private bool realOsuRunning;
+        private string? otherRunningIn;
+        private List<string> problems = null!;
+        private List<bool?> indeterminateAtLink = null!;
+        private InstanceViewModel? current;
         private Action? launched;
 
         [SetUp]
@@ -52,6 +56,9 @@ namespace Torii.Tests
             linkAllowed = true;
             realOsuData = null;
             realOsuRunning = false;
+            otherRunningIn = null;
+            problems = [];
+            indeterminateAtLink = [];
             launched = null;
         }
 
@@ -141,7 +148,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(instance.IsInstalled, Is.False);
-                Assert.That(model.Status, Does.StartWith("Couldn't set up Omamori 2.0.0."));
+                Assert.That(problems.Single(), Does.StartWith("Couldn't set up Omamori 2.0.0."));
                 Assert.That(model.IsBusy, Is.False);
                 Assert.That(model.Summary, Is.EqualTo("Not set up yet"));
             }
@@ -194,6 +201,54 @@ namespace Torii.Tests
         }
 
         [Test]
+        public async Task GameIsNotStartedWhileAnotherInstanceUsesTheLibrary()
+        {
+            placeGame();
+            otherRunningIn = Path.Combine(directory, "instances", "meow");
+            InstanceViewModel model = create();
+
+            await model.PlayCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(started, Is.Empty);
+                Assert.That(events, Is.Empty);
+                Assert.That(problems.Single(), Does.StartWith("Couldn't start osu!.").And.Contains("meow").And.Contains("Close it first"));
+                Assert.That(model.Status, Is.Null);
+                Assert.That(model.IsBusy, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task BarIsIndeterminateWhileTheLibraryIsLinkedAndNotAfter()
+        {
+            placeGame();
+            InstanceViewModel model = create();
+
+            await model.PlayCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(indeterminateAtLink, Has.Count.EqualTo(1));
+                Assert.That(indeterminateAtLink, Has.All.EqualTo(true));
+                Assert.That(model.IsIndeterminate, Is.False);
+                Assert.That(model.IsBusy, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task BarIsNotLeftSpinningWhenPlayFails()
+        {
+            placeGame();
+            otherRunningIn = Path.Combine(directory, "instances", "meow");
+            InstanceViewModel model = create();
+
+            await model.PlayCommand.ExecuteAsync(null);
+
+            Assert.That(model.IsIndeterminate, Is.False);
+        }
+
+        [Test]
         public async Task PlayingLinksTheLibraryBeforeStarting()
         {
             placeGame();
@@ -216,7 +271,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(started, Is.Empty);
-                Assert.That(model.Status, Does.StartWith("Couldn't start osu!."));
+                Assert.That(problems.Single(), Does.StartWith("Couldn't start osu!."));
                 Assert.That(model.IsBusy, Is.False);
             }
         }
@@ -229,6 +284,7 @@ namespace Torii.Tests
             launched = () => osuRunning = true;
             await model.PlayCommand.ExecuteAsync(null);
             events.Clear();
+            indeterminateAtLink.Clear();
 
             osuRunning = false;
             await model.RefreshOsuRunningAsync();
@@ -236,6 +292,8 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(events, Is.EqualTo(link_only));
+                Assert.That(indeterminateAtLink, Has.All.EqualTo(true));
+                Assert.That(model.IsIndeterminate, Is.False);
                 Assert.That(model.OsuRunning, Is.False);
                 Assert.That(model.IsBusy, Is.False);
             }
@@ -273,7 +331,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(started, Is.Empty);
-                Assert.That(model.Status, Does.StartWith("Couldn't start osu!.").And.Contains("update this instance"));
+                Assert.That(problems.Single(), Does.StartWith("Couldn't start osu!.").And.Contains("update this instance"));
             }
         }
 
@@ -363,7 +421,7 @@ namespace Torii.Tests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(model.Status, Does.StartWith("Couldn't import from osu!.").And.Contains("client.realm"));
+                Assert.That(problems.Single(), Does.StartWith("Couldn't import from osu!.").And.Contains("client.realm"));
                 Assert.That(model.ImportAvailable, Is.True);
             }
         }
@@ -408,7 +466,7 @@ namespace Torii.Tests
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(model.Status, Does.StartWith("Couldn't import from osu!."));
+                Assert.That(problems.Single(), Does.StartWith("Couldn't import from osu!."));
                 Assert.That(model.ImportAvailable, Is.True);
                 Assert.That(model.IsBusy, Is.False);
             }
@@ -440,7 +498,7 @@ namespace Torii.Tests
 
             await model.PlayCommand.ExecuteAsync(null);
 
-            Assert.That(model.Status, Is.EqualTo("Couldn't start osu!. blocked"));
+            Assert.That(problems.Single(), Is.EqualTo("Couldn't start osu!. blocked"));
         }
 
         [Test]
@@ -510,7 +568,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(model.ModList.Mods, Is.Empty);
-                Assert.That(model.Status, Does.StartWith("Couldn't add the mod."));
+                Assert.That(problems.Single(), Does.StartWith("Couldn't add the mod."));
             }
         }
 
@@ -535,6 +593,12 @@ namespace Torii.Tests
                 File.WriteAllText(file, string.Empty);
 
             File.WriteAllText(Path.Combine(instance.Directory, "sq.version"), $"<package><metadata><version>{lazer}</version></metadata></package>");
+        }
+
+        private Task showProblem(string message)
+        {
+            problems.Add(message);
+            return Task.CompletedTask;
         }
 
         private void placeRealOsu()
@@ -562,10 +626,11 @@ namespace Torii.Tests
             var library = new SharedLibrary(Path.Combine(directory, "library"), (_, _) =>
             {
                 events.Add("link");
+                indeterminateAtLink.Add(current?.IsIndeterminate);
                 return linkAllowed;
-            }, () => false);
+            }, () => false, _ => otherRunningIn);
 
-            return new InstanceViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), library, new LibrarySeed(() => realOsuRunning, () => realOsuData, () => lazer), () => osuRunning, launcher);
+            return current = new InstanceViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), library, new LibrarySeed(() => realOsuRunning, () => realOsuData, () => lazer), () => osuRunning, launcher) { ShowProblem = showProblem };
         }
 
         private void serveReleases(params string[] versions)

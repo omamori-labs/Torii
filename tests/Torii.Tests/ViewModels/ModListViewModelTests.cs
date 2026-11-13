@@ -161,6 +161,23 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void FailuresGoToTheProblemCallbackWhenThereIsOne()
+        {
+            mod("a.mod", "Cool Mod");
+            string? problem = null;
+            var list = new ModListViewModel(new ModLibrary(instance.Omamori, () => osuRunning), message => status = message, message => problem = message);
+
+            osuRunning = true;
+            list.Mods[0].RemoveCommand.Execute(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(problem, Does.StartWith("Couldn't remove Cool Mod."));
+                Assert.That(status, Is.Null);
+            }
+        }
+
+        [Test]
         public void OnlyACrashedModCanBeTriedAgain()
         {
             mod("a.crashed", "Crashed");

@@ -35,6 +35,12 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void NothingIsFoundWhenNoRunningGameQualifies()
+        {
+            Assert.That(OsuProcess.FindRunning(_ => false), Is.Null);
+        }
+
+        [Test]
         public void LookingForOsuNeverThrows()
         {
             Assert.That(() => OsuProcess.IsRunningIn(instance), Throws.Nothing);

@@ -16,6 +16,12 @@
     <PackageReference Include="Velopack" />
   </ItemGroup>
 
+  <!-- Debug only, does nothing in release -->
+  <ItemGroup>
+    <PackageReference Include="Avalonia.Markup.Xaml.Loader" PrivateAssets="All" />
+    <PackageReference Include="HotAvalonia" PrivateAssets="All" />
+  </ItemGroup>
+
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>

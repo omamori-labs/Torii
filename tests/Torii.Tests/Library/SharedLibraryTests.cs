@@ -147,6 +147,24 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void GameOfALinkedInstanceIsFound()
+        {
+            library.Attach(instance);
+            var watching = new SharedLibrary(library.Root, null, () => false, uses => uses(instance.Directory) ? instance.Directory : null);
+
+            Assert.That(watching.FindRunningInstance(), Is.EqualTo(instance.Directory));
+        }
+
+        [Test]
+        public void GameOfAnInstanceLinkedToAnotherLibraryIsNotFound()
+        {
+            new SharedLibrary(Path.Combine(directory, "elsewhere")).Attach(instance);
+            var watching = new SharedLibrary(library.Root, null, () => false, uses => uses(instance.Directory) ? instance.Directory : null);
+
+            Assert.That(watching.FindRunningInstance(), Is.Null);
+        }
+
+        [Test]
         public void LinkedInstanceNeedsNoPermission()
         {
             library.Attach(instance);

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -29,6 +30,7 @@ namespace Torii.Tests
         private SharedLibrary library = null!;
         private bool storeSeesGameRunning;
         private bool gameRunning;
+        private List<string> problems = null!;
 
         [SetUp]
         public void SetUp()
@@ -38,10 +40,11 @@ namespace Torii.Tests
 
             storeSeesGameRunning = false;
             gameRunning = false;
+            problems = [];
             store = new InstanceStore(Path.Combine(directory, "instances"), Path.Combine(directory, "old-instance"), _ => storeSeesGameRunning);
             handler = new RouteHandler();
             http = new HttpClient(handler);
-            library = new SharedLibrary(Path.Combine(directory, "library"), (_, _) => true, () => false);
+            library = new SharedLibrary(Path.Combine(directory, "library"), (_, _) => true, () => false, _ => null);
         }
 
         [TearDown]
@@ -77,7 +80,7 @@ namespace Torii.Tests
             {
                 Assert.That(model.HasInstances, Is.False);
                 Assert.That(model.Selected, Is.Null);
-                Assert.That(model.AskDeleteCommand.CanExecute(null), Is.False);
+                Assert.That(model.DeleteCommand.CanExecute(null), Is.False);
             }
         }
 
@@ -93,7 +96,7 @@ namespace Torii.Tests
             {
                 Assert.That(model.Instances, Has.Count.EqualTo(2));
                 Assert.That(model.Selected!.Instance.Directory, Is.EqualTo(given.Directory));
-                Assert.That(model.AskDeleteCommand.CanExecute(null), Is.False);
+                Assert.That(model.DeleteCommand.CanExecute(null), Is.False);
             }
         }
 
@@ -201,26 +204,7 @@ namespace Torii.Tests
         }
 
         [Test]
-        public void DeletingAsksFirstAndCanBeCancelled()
-        {
-            store.Create("alpha");
-            MainViewModel model = create();
-
-            model.AskDeleteCommand.Execute(null);
-            bool asked = model.ConfirmingDelete;
-            model.CancelDeleteCommand.Execute(null);
-
-            using (Assert.EnterMultipleScope())
-            {
-                Assert.That(asked, Is.True);
-                Assert.That(model.ConfirmingDelete, Is.False);
-                Assert.That(model.Instances, Has.Count.EqualTo(1));
-                Assert.That(Directory.Exists(model.Selected!.Instance.Directory), Is.True);
-            }
-        }
-
-        [Test]
-        public void ConfirmedDeleteRemovesTheInstanceAndSelectsTheNextOne()
+        public async Task DeletingRemovesTheInstanceAtOnceAndSelectsTheNextOne()
         {
             store.Create("alpha");
             LazerInstance middle = store.Create("beta");
@@ -228,26 +212,24 @@ namespace Torii.Tests
             MainViewModel model = create();
             model.Selected = model.Instances[1];
 
-            model.AskDeleteCommand.Execute(null);
-            model.ConfirmDeleteCommand.Execute(null);
+            await model.DeleteCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(Directory.Exists(middle.Directory), Is.False);
                 Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(alpha_gamma));
                 Assert.That(model.Selected!.Name, Is.EqualTo("gamma"));
-                Assert.That(model.ConfirmingDelete, Is.False);
+                Assert.That(problems, Is.Empty);
             }
         }
 
         [Test]
-        public void DeletingTheLastInstanceLeavesNothingSelected()
+        public async Task DeletingTheLastInstanceLeavesNothingSelected()
         {
             store.Create("only");
             MainViewModel model = create();
 
-            model.AskDeleteCommand.Execute(null);
-            model.ConfirmDeleteCommand.Execute(null);
+            await model.DeleteCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
@@ -262,23 +244,21 @@ namespace Torii.Tests
             store.Create("alpha");
             gameRunning = true;
 
-            Assert.That(create().AskDeleteCommand.CanExecute(null), Is.False);
+            Assert.That(create().DeleteCommand.CanExecute(null), Is.False);
         }
 
         [Test]
-        public void DeleteThatTheStoreRefusesSaysWhyAndKeepsTheInstance()
+        public async Task DeleteThatTheStoreRefusesSaysWhyAndKeepsTheInstance()
         {
             store.Create("alpha");
             MainViewModel model = create();
             storeSeesGameRunning = true;
 
-            model.AskDeleteCommand.Execute(null);
-            model.ConfirmDeleteCommand.Execute(null);
+            await model.DeleteCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(model.Problem, Does.StartWith("Couldn't delete alpha.").And.Contains("Close osu!"));
-                Assert.That(model.ConfirmingDelete, Is.False);
+                Assert.That(problems.Single(), Does.StartWith("Couldn't delete alpha.").And.Contains("Close osu!"));
                 Assert.That(model.Instances, Has.Count.EqualTo(1));
             }
         }
@@ -354,7 +334,13 @@ namespace Torii.Tests
                 """);
         }
 
-        private MainViewModel create(LazerInstance? given = null) => new MainViewModel(store, makeInstance, given);
+        private MainViewModel create(LazerInstance? given = null) => new MainViewModel(store, makeInstance, given) { ShowProblem = showProblem };
+
+        private Task showProblem(string message)
+        {
+            problems.Add(message);
+            return Task.CompletedTask;
+        }
 
         private InstanceViewModel makeInstance(LazerInstance instance) => new InstanceViewModel(
             instance,

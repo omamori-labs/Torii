@@ -24,7 +24,7 @@
                 <Button Content="Import from osu!" Command="{Binding ImportCommand}" IsVisible="{Binding ImportAvailable}" />
             </StackPanel>
 
-            <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
+            <ProgressBar Value="{Binding Progress}" Maximum="1" IsIndeterminate="{Binding IsIndeterminate}" IsVisible="{Binding IsBusy}" />
             <TextBlock Text="{Binding Status}"
                        IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}"
                        TextWrapping="Wrap" />

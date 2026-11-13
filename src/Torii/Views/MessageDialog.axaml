@@ -1,0 +1,22 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Torii.Views.MessageDialog"
+        Title="Torii"
+        Icon="/Assets/torii.ico"
+        SizeToContent="WidthAndHeight"
+        MinWidth="320"
+        MaxWidth="480"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterOwner">
+    <StackPanel Margin="20" Spacing="16">
+        <TextBlock x:Name="MessageText" TextWrapping="Wrap" MaxWidth="440" />
+        <Button x:Name="OkButton"
+                Content="OK"
+                MinWidth="80"
+                HorizontalAlignment="Right"
+                HorizontalContentAlignment="Center"
+                IsDefault="True"
+                Classes="accent" />
+    </StackPanel>
+</Window>

@@ -30,8 +30,45 @@ namespace Torii.Core
             }
         }
 
+        public static string? FindRunning(Func<string, bool> uses)
+        {
+            Process[] processes = Process.GetProcessesByName(PROCESS_NAME);
+
+            try
+            {
+                foreach (Process process in processes)
+                {
+                    if (directoryOf(process) is string directory && uses(directory))
+                        return directory;
+                }
+
+                return null;
+            }
+            finally
+            {
+                foreach (Process process in processes)
+                    process.Dispose();
+            }
+        }
+
         internal static bool IsIn(string? executable, string directory) =>
             executable == null || Paths.IsInside(Path.GetFullPath(directory), Path.GetFullPath(executable));
+
+        private static string? directoryOf(Process process)
+        {
+            try
+            {
+                return Path.GetDirectoryName(process.MainModule?.FileName);
+            }
+            catch (InvalidOperationException)
+            {
+                return null;
+            }
+            catch (Win32Exception)
+            {
+                return null;
+            }
+        }
 
         private static bool isIn(Process process, string directory)
         {

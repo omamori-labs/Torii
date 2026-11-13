@@ -40,7 +40,7 @@ namespace Torii.ViewModels
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
             this.launcher = launcher ?? new GameLauncher();
 
-            ModList = new ModListViewModel(new ModLibrary(instance.Omamori, this.osuRunning), status => Status = status);
+            ModList = new ModListViewModel(new ModLibrary(instance.Omamori, this.osuRunning), status => Status = status, message => _ = problem(message));
             ModList.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(ModListViewModel.HasMods))
@@ -65,6 +65,8 @@ namespace Torii.ViewModels
         public bool NoMods => IsSetUp && !ModList.HasMods;
 
         public Func<Task<string?>>? PickModZip { get; set; }
+
+        public Func<string, Task>? ShowProblem { get; set; }
 
         public Func<Task<string?>>? PickOsuFolder { get; set; }
 
@@ -104,6 +106,9 @@ namespace Torii.ViewModels
         public partial double Progress { get; private set; }
 
         [ObservableProperty]
+        public partial bool IsIndeterminate { get; private set; }
+
+        [ObservableProperty]
         public partial string? Status { get; private set; }
 
         public string InstallLabel
@@ -140,6 +145,7 @@ namespace Torii.ViewModels
             ModList.Refresh();
 
             IsBusy = true;
+            IsIndeterminate = true;
 
             try
             {
@@ -152,6 +158,7 @@ namespace Torii.ViewModels
             finally
             {
                 IsBusy = false;
+                IsIndeterminate = false;
                 refreshImport();
             }
         }
@@ -181,6 +188,7 @@ namespace Torii.ViewModels
             IsBusy = true;
             Progress = 0;
             Status = "Importing your osu! maps and skins...";
+            string? failure = null;
 
             try
             {
@@ -196,13 +204,16 @@ namespace Torii.ViewModels
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
             {
-                Status = $"Couldn't import from osu!. {e.Message}";
+                failure = $"Couldn't import from osu!. {e.Message}";
             }
             finally
             {
                 IsBusy = false;
                 refreshImport();
             }
+
+            if (failure != null)
+                await problem(failure);
         }
 
         [RelayCommand]
@@ -240,6 +251,7 @@ namespace Torii.ViewModels
         public async Task InstallAsync()
         {
             OmamoriRelease release = SelectedRelease!;
+            string? failure = null;
 
             IsBusy = true;
             Progress = 0;
@@ -252,25 +264,35 @@ namespace Torii.ViewModels
             catch (Exception e) when (e is HttpRequestException or InvalidDataException or InvalidOperationException or IOException or UnauthorizedAccessException or TaskCanceledException
                                           or PlatformNotSupportedException)
             {
-                Status = $"Couldn't set up Omamori {release.Version}. {e.Message}";
+                failure = $"Couldn't set up Omamori {release.Version}. {e.Message}";
             }
             finally
             {
                 IsBusy = false;
+                IsIndeterminate = false;
                 refreshInstance();
                 ModList.Refresh();
             }
+
+            if (failure != null)
+                await problem(failure);
         }
 
         [RelayCommand(CanExecute = nameof(canPlay))]
         public async Task PlayAsync()
         {
+            string? failure = null;
+
             IsBusy = true;
+            IsIndeterminate = true;
 
             try
             {
                 await Task.Run(() =>
                 {
+                    if (library.FindRunningInstance() is string other)
+                        throw new InvalidOperationException($"osu! is open in {Path.GetFileName(other)} and shares the library. Close it first.");
+
                     library.Attach(instance);
                     library.Use(instance);
                 });
@@ -279,15 +301,27 @@ namespace Torii.ViewModels
             }
             catch (Exception e) when (e is InvalidOperationException or Win32Exception or IOException or UnauthorizedAccessException)
             {
-                Status = $"Couldn't start osu!. {e.Message}";
+                failure = $"Couldn't start osu!. {e.Message}";
             }
             finally
             {
                 IsBusy = false;
+                IsIndeterminate = false;
                 refreshImport();
             }
 
+            if (failure != null)
+                await problem(failure);
+
             await RefreshOsuRunningAsync();
+        }
+
+        private async Task problem(string message)
+        {
+            if (ShowProblem != null)
+                await ShowProblem(message);
+            else
+                Status = message;
         }
 
         private bool canInstall() => SelectedRelease != null && !IsBusy && !OsuRunning;
@@ -307,6 +341,7 @@ namespace Torii.ViewModels
                 return;
 
             Progress = progress.Fraction;
+            IsIndeterminate = progress.Stage == SetupStage.Installing && progress.Fraction < 1;
             Status = progress.Stage switch
             {
                 SetupStage.DownloadingOmamori => $"Downloading Omamori {release.Version}...",
