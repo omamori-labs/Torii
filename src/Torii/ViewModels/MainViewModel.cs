@@ -1,0 +1,193 @@
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
+using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
+using Torii.Core.Instances;
+using Torii.Core.Lazer;
+
+namespace Torii.ViewModels
+{
+    public sealed partial class MainViewModel : ObservableObject
+    {
+        private readonly InstanceStore store;
+        private readonly Func<LazerInstance, InstanceViewModel> createInstance;
+
+        public MainViewModel(InstanceStore store, Func<LazerInstance, InstanceViewModel> createInstance, LazerInstance? given = null)
+        {
+            this.store = store;
+            this.createInstance = createInstance;
+
+            NewName = string.Empty;
+            Instances.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasInstances));
+
+            foreach (LazerInstance instance in store.List())
+                Instances.Add(wrap(instance));
+
+            if (given != null && Instances.FirstOrDefault(i => sameFolder(i.Instance, given)) is null)
+                insert(wrap(given));
+
+            Selected = given == null ? Instances.FirstOrDefault() : Instances.First(i => sameFolder(i.Instance, given));
+        }
+
+        public ObservableCollection<InstanceViewModel> Instances { get; } = [];
+
+        public bool HasInstances => Instances.Count > 0;
+
+        public Func<Task<string?>>? PickModZip { get; set; }
+
+        public Func<Task<string?>>? PickOsuFolder { get; set; }
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(AskDeleteCommand))]
+        public partial InstanceViewModel? Selected { get; set; }
+
+        [ObservableProperty]
+        public partial bool IsNaming { get; private set; }
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CreateInstanceCommand))]
+        public partial string NewName { get; set; }
+
+        [ObservableProperty]
+        [NotifyCanExecuteChangedFor(nameof(CreateInstanceCommand))]
+        public partial string? NewNameProblem { get; private set; }
+
+        [ObservableProperty]
+        public partial bool ConfirmingDelete { get; private set; }
+
+        [ObservableProperty]
+        public partial string? Problem { get; private set; }
+
+        public async Task RefreshAsync()
+        {
+            foreach (InstanceViewModel instance in Instances.ToList())
+                await instance.RefreshOsuRunningAsync();
+        }
+
+        public void RefreshMods()
+        {
+            foreach (InstanceViewModel instance in Instances)
+                instance.ModList.Refresh();
+        }
+
+        [RelayCommand]
+        public void NewInstance()
+        {
+            NewName = string.Empty;
+            IsNaming = true;
+        }
+
+        [RelayCommand]
+        public void CancelNew()
+        {
+            IsNaming = false;
+            NewName = string.Empty;
+        }
+
+        [RelayCommand(CanExecute = nameof(canCreate))]
+        public void CreateInstance()
+        {
+            try
+            {
+                InstanceViewModel created = wrap(store.Create(NewName));
+                insert(created);
+                Selected = created;
+
+                IsNaming = false;
+                NewName = string.Empty;
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                NewNameProblem = e.Message;
+            }
+        }
+
+        [RelayCommand(CanExecute = nameof(canDelete))]
+        public void AskDelete()
+        {
+            Problem = null;
+            ConfirmingDelete = true;
+        }
+
+        [RelayCommand]
+        public void CancelDelete() => ConfirmingDelete = false;
+
+        [RelayCommand]
+        public void ConfirmDelete()
+        {
+            if (Selected is not { } doomed || !canDelete())
+            {
+                ConfirmingDelete = false;
+                return;
+            }
+
+            try
+            {
+                store.Delete(doomed.Instance);
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                Problem = $"Couldn't delete {doomed.Name}. {e.Message}";
+                ConfirmingDelete = false;
+                return;
+            }
+
+            int index = Instances.IndexOf(doomed);
+            Instances.Remove(doomed);
+            Selected = Instances.Count == 0 ? null : Instances[Math.Min(index, Instances.Count - 1)];
+        }
+
+        partial void OnNewNameChanged(string value) => NewNameProblem = value.Trim().Length == 0 ? null : store.Validate(value);
+
+        partial void OnSelectedChanged(InstanceViewModel? oldValue, InstanceViewModel? newValue)
+        {
+            if (oldValue != null)
+                oldValue.PropertyChanged -= selectedChanged;
+
+            if (newValue != null)
+            {
+                newValue.PropertyChanged += selectedChanged;
+                _ = newValue.EnsureReleasesAsync();
+            }
+
+            ConfirmingDelete = false;
+            Problem = null;
+        }
+
+        private static bool sameFolder(LazerInstance a, LazerInstance b) =>
+            string.Equals(a.Directory, b.Directory, StringComparison.OrdinalIgnoreCase);
+
+        private bool canCreate() => NewName.Trim().Length > 0 && NewNameProblem == null;
+
+        private bool canDelete() => Selected != null && store.Manages(Selected.Instance) && !Selected.IsBusy && !Selected.OsuRunning;
+
+        private void selectedChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName is nameof(InstanceViewModel.IsBusy) or nameof(InstanceViewModel.OsuRunning))
+                AskDeleteCommand.NotifyCanExecuteChanged();
+        }
+
+        private Task<string?> askModZip() => PickModZip?.Invoke() ?? Task.FromResult<string?>(null);
+
+        private Task<string?> askOsuFolder() => PickOsuFolder?.Invoke() ?? Task.FromResult<string?>(null);
+
+        private InstanceViewModel wrap(LazerInstance instance)
+        {
+            InstanceViewModel model = createInstance(instance);
+            model.PickModZip = askModZip;
+            model.PickOsuFolder = askOsuFolder;
+
+            return model;
+        }
+
+        private void insert(InstanceViewModel model)
+        {
+            int index = Instances.TakeWhile(i => string.Compare(i.Name, model.Name, StringComparison.OrdinalIgnoreCase) < 0).Count();
+            Instances.Insert(index, model);
+        }
+    }
+}

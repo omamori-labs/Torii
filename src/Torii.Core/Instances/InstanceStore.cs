@@ -85,7 +85,7 @@ namespace Torii.Core.Instances
 
         public void Delete(LazerInstance instance)
         {
-            if (!manages(instance))
+            if (!Manages(instance))
                 throw new InvalidOperationException("Torii only deletes instances it manages.");
 
             if (isRunning(instance))
@@ -94,7 +94,7 @@ namespace Torii.Core.Instances
             Directory.Delete(instance.Directory, recursive: true);
         }
 
-        private bool manages(LazerInstance instance) =>
+        public bool Manages(LazerInstance instance) =>
             (legacy != null && Paths.Same(instance.Directory, legacy))
             || Paths.Same(Path.GetDirectoryName(instance.Directory) ?? string.Empty, Root);
     }

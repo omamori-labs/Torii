@@ -20,11 +20,11 @@ namespace Torii.Views
             osuCheck.Tick += async (_, _) =>
             {
                 if (DataContext is MainViewModel model)
-                    await model.RefreshOsuRunningAsync();
+                    await model.RefreshAsync();
             };
 
             // Mods can be dropped into the folder by hand
-            Activated += (_, _) => (DataContext as MainViewModel)?.ModList.Refresh();
+            Activated += (_, _) => (DataContext as MainViewModel)?.RefreshMods();
         }
 
         protected override void OnOpened(EventArgs e)
@@ -36,7 +36,13 @@ namespace Torii.Views
 
             model.PickModZip = pickModZip;
             model.PickOsuFolder = pickOsuFolder;
-            model.LoadReleasesCommand.Execute(null);
+
+            model.PropertyChanged += (_, args) =>
+            {
+                if (args.PropertyName == nameof(MainViewModel.IsNaming) && model.IsNaming)
+                    Dispatcher.UIThread.Post(() => NewNameBox.Focus());
+            };
+
             osuCheck.Start();
         }
 

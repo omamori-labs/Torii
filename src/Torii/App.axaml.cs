@@ -3,6 +3,7 @@ using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Torii.Core;
+using Torii.Core.Instances;
 using Torii.Core.Lazer;
 using Torii.Core.Library;
 using Torii.Core.Releases;
@@ -22,11 +23,17 @@ namespace Torii
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
                 // Instance folder can be passed in, handy for testing
-                string folder = desktop.Args is [string given, ..] ? given : LazerInstance.DefaultDirectory();
+                LazerInstance? given = desktop.Args is [string folder, ..] ? new LazerInstance(folder) : null;
+
+                var feed = new ReleaseFeed(http);
+                var setup = new InstanceSetup(http);
+                var library = new SharedLibrary(SharedLibrary.DefaultDirectory(), ElevatedLink.Request);
+                var seed = new LibrarySeed();
+                var store = new InstanceStore(InstanceStore.DefaultDirectory(), LazerInstance.DefaultDirectory());
 
                 desktop.MainWindow = new MainWindow
                 {
-                    DataContext = new MainViewModel(new LazerInstance(folder), new ReleaseFeed(http), new InstanceSetup(http), new SharedLibrary(SharedLibrary.DefaultDirectory(), ElevatedLink.Request), new LibrarySeed()),
+                    DataContext = new MainViewModel(store, instance => new InstanceViewModel(instance, feed, setup, library, seed), given),
                 };
             }
 

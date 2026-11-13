@@ -17,7 +17,7 @@ using Torii.ViewModels;
 namespace Torii.Tests
 {
     [TestFixture]
-    public class MainViewModelTests
+    public class InstanceViewModelTests
     {
         private const string lazer = "2026.1005.0-lazer";
 
@@ -66,7 +66,7 @@ namespace Torii.Tests
         [Test]
         public void WithoutAnInstanceThereIsSomethingToSetUp()
         {
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             using (Assert.EnterMultipleScope())
             {
@@ -80,7 +80,7 @@ namespace Torii.Tests
         public async Task LoadingReleasesSelectsTheNewest()
         {
             serveReleases("2.0.0", "1.0.0");
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             await model.LoadReleasesCommand.ExecuteAsync(null);
 
@@ -96,7 +96,7 @@ namespace Torii.Tests
         [Test]
         public async Task FailingToLoadReleasesSaysSoAndLeavesNothingToInstall()
         {
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             await model.LoadReleasesCommand.ExecuteAsync(null);
 
@@ -113,7 +113,7 @@ namespace Torii.Tests
         {
             serveReleases("2.0.0");
             serveLazer();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             await model.LoadReleasesCommand.ExecuteAsync(null);
 
             await model.InstallCommand.ExecuteAsync(null);
@@ -133,7 +133,7 @@ namespace Torii.Tests
         public async Task FailedSetupSaysWhy()
         {
             serveReleases("2.0.0");
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             await model.LoadReleasesCommand.ExecuteAsync(null);
 
             await model.InstallCommand.ExecuteAsync(null);
@@ -151,7 +151,7 @@ namespace Torii.Tests
         public async Task NothingCanBeChangedWhileTheInstanceRuns()
         {
             serveReleases("2.0.0");
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             await model.LoadReleasesCommand.ExecuteAsync(null);
 
             osuRunning = true;
@@ -168,7 +168,7 @@ namespace Torii.Tests
         [Test]
         public void ThereIsNothingToPlayBeforeSetup()
         {
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             using (Assert.EnterMultipleScope())
             {
@@ -181,7 +181,7 @@ namespace Torii.Tests
         public async Task PlayingStartsTheInstancesGame()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             await model.PlayCommand.ExecuteAsync(null);
 
@@ -197,7 +197,7 @@ namespace Torii.Tests
         public async Task PlayingLinksTheLibraryBeforeStarting()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             await model.PlayCommand.ExecuteAsync(null);
 
@@ -208,7 +208,7 @@ namespace Torii.Tests
         public async Task GameIsNotStartedWhenTheLibraryCantBeLinked()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             linkAllowed = false;
 
             await model.PlayCommand.ExecuteAsync(null);
@@ -225,7 +225,7 @@ namespace Torii.Tests
         public async Task LibraryIsLinkedAgainWhenTheGameCloses()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             launched = () => osuRunning = true;
             await model.PlayCommand.ExecuteAsync(null);
             events.Clear();
@@ -245,7 +245,7 @@ namespace Torii.Tests
         public async Task GameThatClosesWithoutTheLibraryBeingLinkedSaysSo()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             launched = () => osuRunning = true;
             await model.PlayCommand.ExecuteAsync(null);
 
@@ -266,7 +266,7 @@ namespace Torii.Tests
             placeGame();
             Directory.CreateDirectory(Path.Combine(directory, "library"));
             File.WriteAllText(Path.Combine(directory, "library", "torii-library.txt"), "2099.101.0-lazer");
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             await model.PlayCommand.ExecuteAsync(null);
 
@@ -281,7 +281,7 @@ namespace Torii.Tests
         public void ImportIsOfferedWhenThereIsAnOsuLibraryToTakeIn()
         {
             placeRealOsu();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             using (Assert.EnterMultipleScope())
             {
@@ -301,7 +301,7 @@ namespace Torii.Tests
         {
             string picked = Path.Combine(directory, "picked-osu");
             placeOsuLibrary(picked);
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             model.PickOsuFolder = () => Task.FromResult<string?>(picked);
 
             await model.ImportCommand.ExecuteAsync(null);
@@ -317,7 +317,7 @@ namespace Torii.Tests
         public async Task FolderIsNotAskedForWhenOneWasFound()
         {
             placeRealOsu();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             bool asked = false;
             model.PickOsuFolder = () =>
             {
@@ -337,7 +337,7 @@ namespace Torii.Tests
         [Test]
         public async Task CancellingTheFolderPickerImportsNothing()
         {
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             model.PickOsuFolder = () => Task.FromResult<string?>(null);
 
             await model.ImportCommand.ExecuteAsync(null);
@@ -356,7 +356,7 @@ namespace Torii.Tests
         {
             string empty = Path.Combine(directory, "not-osu");
             Directory.CreateDirectory(empty);
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             model.PickOsuFolder = () => Task.FromResult<string?>(empty);
 
             await model.ImportCommand.ExecuteAsync(null);
@@ -382,7 +382,7 @@ namespace Torii.Tests
         public async Task ImportingFillsTheLibraryAndHidesTheButton()
         {
             placeRealOsu();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             await model.ImportCommand.ExecuteAsync(null);
 
@@ -402,7 +402,7 @@ namespace Torii.Tests
         {
             placeRealOsu();
             realOsuRunning = true;
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             await model.ImportCommand.ExecuteAsync(null);
 
@@ -418,7 +418,7 @@ namespace Torii.Tests
         public async Task OnceTheGameRunsItCannotBeStartedAgain()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             launched = () => osuRunning = true;
 
             await model.PlayCommand.ExecuteAsync(null);
@@ -435,7 +435,7 @@ namespace Torii.Tests
         public async Task GameThatFailsToStartSaysWhy()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             launched = () => throw new Win32Exception("blocked");
 
             await model.PlayCommand.ExecuteAsync(null);
@@ -446,7 +446,7 @@ namespace Torii.Tests
         [Test]
         public void NothingSaysThereAreNoModsBeforeSetup()
         {
-            MainViewModel model = create();
+            InstanceViewModel model = create();
 
             using (Assert.EnterMultipleScope())
             {
@@ -467,7 +467,7 @@ namespace Torii.Tests
         public async Task AddingAModFromAZipListsIt()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             model.PickModZip = () => Task.FromResult<string?>(modZip("someone.coolmod", "Cool Mod"));
 
             await model.AddModCommand.ExecuteAsync(null);
@@ -484,7 +484,7 @@ namespace Torii.Tests
         public async Task CancellingThePickerChangesNothing()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             model.PickModZip = () => Task.FromResult<string?>(null);
 
             await model.AddModCommand.ExecuteAsync(null);
@@ -500,7 +500,7 @@ namespace Torii.Tests
         public async Task AddingSomethingThatIsNotAModSaysWhy()
         {
             placeGame();
-            MainViewModel model = create();
+            InstanceViewModel model = create();
             string notAMod = Path.Combine(directory, "not-a-mod.zip");
             File.WriteAllBytes(notAMod, Fixtures.Zip(("readme.txt", "hi"u8.ToArray())));
             model.PickModZip = () => Task.FromResult<string?>(notAMod);
@@ -550,7 +550,7 @@ namespace Torii.Tests
             File.WriteAllText(Path.Combine(folder, "client.realm"), "db");
         }
 
-        private MainViewModel create()
+        private InstanceViewModel create()
         {
             var launcher = new GameLauncher(info =>
             {
@@ -565,7 +565,7 @@ namespace Torii.Tests
                 return linkAllowed;
             }, () => false);
 
-            return new MainViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), library, new LibrarySeed(() => realOsuRunning, () => realOsuData, () => lazer), () => osuRunning, launcher);
+            return new InstanceViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), library, new LibrarySeed(() => realOsuRunning, () => realOsuData, () => lazer), () => osuRunning, launcher);
         }
 
         private void serveReleases(params string[] versions)

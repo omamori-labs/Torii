@@ -1,80 +1,78 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Torii.ViewModels"
-        xmlns:core="using:Torii.Core.Omamori"
+        xmlns:views="using:Torii.Views"
         x:Class="Torii.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="Torii"
         Icon="/Assets/torii.ico"
-        Width="560" Height="480"
-        MinWidth="420" MinHeight="300">
-    <DockPanel Margin="16">
-        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,16">
-            <TextBlock Text="{Binding Summary}" />
+        Width="820" Height="520"
+        MinWidth="680" MinHeight="360">
+    <Grid ColumnDefinitions="220,*">
+        <DockPanel Margin="12">
+            <Button DockPanel.Dock="Top"
+                    Content="New instance"
+                    Command="{Binding NewInstanceCommand}"
+                    IsVisible="{Binding !IsNaming}"
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Margin="0,0,0,8" />
 
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <ComboBox ItemsSource="{Binding Releases}"
-                          SelectedItem="{Binding SelectedRelease}"
-                          IsEnabled="{Binding !IsBusy}"
-                          MinWidth="180"
-                          PlaceholderText="No releases">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate x:DataType="core:OmamoriRelease">
-                            <TextBlock Text="{Binding Version}" />
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes.accent="{Binding !IsSetUp}" />
-                <Button Content="Play" Command="{Binding PlayCommand}" IsVisible="{Binding IsSetUp}" Classes="accent" />
-                <Button Content="Add mod" Command="{Binding AddModCommand}" IsVisible="{Binding IsSetUp}" />
-                <Button Content="Import from osu!" Command="{Binding ImportCommand}" IsVisible="{Binding ImportAvailable}" />
+            <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,8" IsVisible="{Binding IsNaming}">
+                <TextBox x:Name="NewNameBox" Text="{Binding NewName}" PlaceholderText="Name" MaxLength="50">
+                    <TextBox.KeyBindings>
+                        <KeyBinding Gesture="Enter" Command="{Binding CreateInstanceCommand}" />
+                        <KeyBinding Gesture="Escape" Command="{Binding CancelNewCommand}" />
+                    </TextBox.KeyBindings>
+                </TextBox>
+                <TextBlock Text="{Binding NewNameProblem}"
+                           IsVisible="{Binding NewNameProblem, Converter={x:Static ObjectConverters.IsNotNull}}"
+                           Foreground="Orange"
+                           TextWrapping="Wrap" />
             </StackPanel>
 
-            <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
-            <TextBlock Text="{Binding Status}"
-                       IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}"
-                       TextWrapping="Wrap" />
-        </StackPanel>
+            <ListBox ItemsSource="{Binding Instances}" SelectedItem="{Binding Selected}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:InstanceViewModel">
+                        <StackPanel Spacing="2" Margin="0,4">
+                            <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="{Binding ModsLabel}" Opacity="0.6" />
+                                <TextBlock Text="Running" IsVisible="{Binding OsuRunning}" Foreground="Orange" />
+                            </StackPanel>
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
 
-        <Panel>
-            <TextBlock Text="No mods installed." IsVisible="{Binding NoMods}" Opacity="0.6" />
+        <DockPanel Grid.Column="1" Margin="0,12,16,16">
+            <Grid DockPanel.Dock="Top"
+                  ColumnDefinitions="*,Auto"
+                  Margin="0,0,0,16"
+                  IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <TextBlock Text="{Binding Selected.Summary}" VerticalAlignment="Center" />
 
-            <ScrollViewer IsVisible="{Binding ModList.HasMods}">
-                <ItemsControl ItemsSource="{Binding ModList.Mods}" IsEnabled="{Binding CanEdit}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ModItemViewModel">
-                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
-                                <StackPanel Spacing="2">
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Version}" Opacity="0.6" />
-                                        <TextBlock Text="{Binding Byline}"
-                                                   IsVisible="{Binding Byline, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                   Opacity="0.6" />
-                                        <TextBlock Text="Patches osu!" IsVisible="{Binding Patches}" Foreground="Orange" />
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding Description}"
-                                               IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                               TextWrapping="Wrap" />
-                                    <TextBlock Text="{Binding Problem}"
-                                               IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                               Foreground="Orange"
-                                               TextWrapping="Wrap" />
-                                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <Button Content="Delete" Command="{Binding AskDeleteCommand}" IsVisible="{Binding !ConfirmingDelete}" />
+                    <TextBlock Text="Delete this instance?" IsVisible="{Binding ConfirmingDelete}" VerticalAlignment="Center" />
+                    <Button Content="Delete" Command="{Binding ConfirmDeleteCommand}" IsVisible="{Binding ConfirmingDelete}" Classes="accent" />
+                    <Button Content="Cancel" Command="{Binding CancelDeleteCommand}" IsVisible="{Binding ConfirmingDelete}" />
+                </StackPanel>
+            </Grid>
 
-                                <Button Grid.Column="1" Content="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" VerticalAlignment="Center" />
-                                <Button Grid.Column="2" Content="Remove" Command="{Binding RemoveCommand}" VerticalAlignment="Center" />
+            <TextBlock DockPanel.Dock="Top"
+                       Text="{Binding Problem}"
+                       IsVisible="{Binding Problem, Converter={x:Static ObjectConverters.IsNotNull}}"
+                       Foreground="Orange"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,16" />
 
-                                <ToggleSwitch Grid.Column="3"
-                                              IsChecked="{Binding IsOn}"
-                                              IsEnabled="{Binding CanToggle}"
-                                              OnContent="" OffContent=""
-                                              VerticalAlignment="Center" />
-                            </Grid>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-        </Panel>
-    </DockPanel>
+            <TextBlock Text="Create an instance to get started." IsVisible="{Binding !HasInstances}" Opacity="0.6" />
+
+            <Panel IsVisible="{Binding Selected, Converter={x:Static ObjectConverters.IsNotNull}}">
+                <views:InstanceView DataContext="{Binding Selected}" />
+            </Panel>
+        </DockPanel>
+    </Grid>
 </Window>

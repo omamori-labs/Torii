@@ -1,0 +1,74 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Torii.ViewModels"
+             xmlns:core="using:Torii.Core.Omamori"
+             x:Class="Torii.Views.InstanceView"
+             x:DataType="vm:InstanceViewModel">
+    <DockPanel>
+        <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,16">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <ComboBox ItemsSource="{Binding Releases}"
+                          SelectedItem="{Binding SelectedRelease}"
+                          IsEnabled="{Binding !IsBusy}"
+                          MinWidth="180"
+                          PlaceholderText="No releases">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="core:OmamoriRelease">
+                            <TextBlock Text="{Binding Version}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes.accent="{Binding !IsSetUp}" />
+                <Button Content="Play" Command="{Binding PlayCommand}" IsVisible="{Binding IsSetUp}" Classes="accent" />
+                <Button Content="Add mod" Command="{Binding AddModCommand}" IsVisible="{Binding IsSetUp}" />
+                <Button Content="Import from osu!" Command="{Binding ImportCommand}" IsVisible="{Binding ImportAvailable}" />
+            </StackPanel>
+
+            <ProgressBar Value="{Binding Progress}" Maximum="1" IsVisible="{Binding IsBusy}" />
+            <TextBlock Text="{Binding Status}"
+                       IsVisible="{Binding Status, Converter={x:Static ObjectConverters.IsNotNull}}"
+                       TextWrapping="Wrap" />
+        </StackPanel>
+
+        <Panel>
+            <TextBlock Text="No mods installed." IsVisible="{Binding NoMods}" Opacity="0.6" />
+
+            <ScrollViewer IsVisible="{Binding ModList.HasMods}">
+                <ItemsControl ItemsSource="{Binding ModList.Mods}" IsEnabled="{Binding CanEdit}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ModItemViewModel">
+                            <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
+                                <StackPanel Spacing="2">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Version}" Opacity="0.6" />
+                                        <TextBlock Text="{Binding Byline}"
+                                                   IsVisible="{Binding Byline, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                   Opacity="0.6" />
+                                        <TextBlock Text="Patches osu!" IsVisible="{Binding Patches}" Foreground="Orange" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Description}"
+                                               IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                               TextWrapping="Wrap" />
+                                    <TextBlock Text="{Binding Problem}"
+                                               IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                               Foreground="Orange"
+                                               TextWrapping="Wrap" />
+                                </StackPanel>
+
+                                <Button Grid.Column="1" Content="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}" VerticalAlignment="Center" />
+                                <Button Grid.Column="2" Content="Remove" Command="{Binding RemoveCommand}" VerticalAlignment="Center" />
+
+                                <ToggleSwitch Grid.Column="3"
+                                              IsChecked="{Binding IsOn}"
+                                              IsEnabled="{Binding CanToggle}"
+                                              OnContent="" OffContent=""
+                                              VerticalAlignment="Center" />
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Panel>
+    </DockPanel>
+</UserControl>

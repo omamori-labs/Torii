@@ -17,7 +17,7 @@ using Torii.Core.Releases;
 
 namespace Torii.ViewModels
 {
-    public sealed partial class MainViewModel : ObservableObject
+    public sealed partial class InstanceViewModel : ObservableObject
     {
         private readonly LazerInstance instance;
         private readonly ReleaseFeed feed;
@@ -28,8 +28,9 @@ namespace Torii.ViewModels
         private readonly GameLauncher launcher;
 
         private string? installedVersion;
+        private bool releasesLoaded;
 
-        public MainViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, SharedLibrary library, LibrarySeed seed, Func<bool>? osuRunning = null, GameLauncher? launcher = null)
+        public InstanceViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, SharedLibrary library, LibrarySeed seed, Func<bool>? osuRunning = null, GameLauncher? launcher = null)
         {
             this.instance = instance;
             this.feed = feed;
@@ -45,6 +46,7 @@ namespace Torii.ViewModels
                 if (e.PropertyName == nameof(ModListViewModel.HasMods))
                     OnPropertyChanged(nameof(NoMods));
             };
+            ModList.Mods.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ModsLabel));
 
             Summary = string.Empty;
 
@@ -53,6 +55,12 @@ namespace Torii.ViewModels
         }
 
         public ModListViewModel ModList { get; }
+
+        public LazerInstance Instance => instance;
+
+        public string Name => instance.Name;
+
+        public string ModsLabel => ModList.Mods.Count == 1 ? "1 mod" : $"{ModList.Mods.Count} mods";
 
         public bool NoMods => IsSetUp && !ModList.HasMods;
 
@@ -217,6 +225,15 @@ namespace Torii.ViewModels
             {
                 Status = $"Couldn't check for releases. {e.Message}";
             }
+        }
+
+        public async Task EnsureReleasesAsync()
+        {
+            if (releasesLoaded)
+                return;
+
+            releasesLoaded = true;
+            await LoadReleasesAsync();
         }
 
         [RelayCommand(CanExecute = nameof(canInstall))]
