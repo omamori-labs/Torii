@@ -16,6 +16,8 @@ namespace Torii.Core.Lazer
 
         public string Directory { get; }
 
+        public string Name => Path.GetFileName(Path.TrimEndingDirectorySeparator(Directory));
+
         public static string DefaultDirectory() =>
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Torii", "instance");
 
