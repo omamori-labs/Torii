@@ -186,7 +186,11 @@ namespace Torii.ViewModels
 
             try
             {
-                await Task.Run(() => library.Attach(instance));
+                await Task.Run(() =>
+                {
+                    library.Attach(instance);
+                    library.Use(instance);
+                });
                 launcher.Launch(instance);
                 Status = "Starting osu!...";
             }

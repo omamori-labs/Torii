@@ -216,6 +216,23 @@ namespace Torii.Tests
         }
 
         [Test]
+        public async Task GameIsNotStartedWhenTheLibraryIsNewerThanTheInstance()
+        {
+            placeGame();
+            Directory.CreateDirectory(Path.Combine(directory, "library"));
+            File.WriteAllText(Path.Combine(directory, "library", "torii-library.txt"), "2099.101.0-lazer");
+            MainViewModel model = create();
+
+            await model.PlayCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(started, Is.Empty);
+                Assert.That(model.Status, Does.StartWith("Couldn't start osu!.").And.Contains("update this instance"));
+            }
+        }
+
+        [Test]
         public async Task OnceTheGameRunsItCannotBeStartedAgain()
         {
             placeGame();
@@ -334,6 +351,8 @@ namespace Torii.Tests
 
             foreach (string file in new[] { instance.Executable, Path.Combine(instance.Directory, "osu.Game.dll"), instance.PortableMarker })
                 File.WriteAllText(file, string.Empty);
+
+            File.WriteAllText(Path.Combine(instance.Directory, "sq.version"), $"<package><metadata><version>{lazer}</version></metadata></package>");
         }
 
         private MainViewModel create()

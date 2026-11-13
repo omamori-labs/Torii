@@ -60,6 +60,28 @@ namespace Torii.Core.Library
             attach(instance.DatabaseFile, DatabaseFile, isDirectory: false);
         }
 
+        public string? ReadVersion()
+        {
+            if (!File.Exists(markerFile))
+                return null;
+
+            string version = File.ReadAllText(markerFile).Trim();
+            return version.Length > 0 ? version : null;
+        }
+
+        public void Use(LazerInstance instance)
+        {
+            string version = instance.ReadVersion()
+                             ?? throw new InvalidOperationException("Torii can't tell which osu! version this instance has, so it can't tell whether the library is safe to open.");
+            string? newest = ReadVersion();
+
+            if (newest != null && LazerVersions.Compare(newest, version) > 0)
+                throw new InvalidOperationException($"The library was last opened by osu! {newest}. Opening it with the older {version} would reset it, so update this instance first.");
+
+            if (newest == null || LazerVersions.Compare(version, newest) > 0)
+                File.WriteAllText(markerFile, version);
+        }
+
         private static string? target(string local, bool isDirectory)
         {
             FileSystemInfo info = isDirectory ? new DirectoryInfo(local) : new FileInfo(local);
