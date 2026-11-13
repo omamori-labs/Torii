@@ -10,7 +10,7 @@ using Torii.Core;
 namespace Torii.Tests
 {
     [TestFixture]
-    [Platform("Win")]
+    [Platform("Win,Linux")]
     public class InstanceSetupTests
     {
         private const string old_lazer = "2026.1005.0-lazer";

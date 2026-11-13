@@ -11,7 +11,6 @@ using Torii.Core;
 namespace Torii.Tests
 {
     [TestFixture]
-    [Platform("Win")]
     public class LazerInstallerTests
     {
         private static readonly Uri download = new Uri("https://example.com/osulazer.nupkg");
@@ -51,7 +50,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(instance.IsInstalled, Is.True);
-                Assert.That(File.Exists(instance.Executable), Is.True);
+                Assert.That(File.Exists(Path.Combine(instance.Directory, "osu!.exe")), Is.True);
                 Assert.That(File.Exists(instance.PortableMarker), Is.True);
                 Assert.That(instance.ReadVersion(), Is.EqualTo("2026.1005.0-lazer"));
                 Assert.That(File.Exists(Path.Combine(instance.Directory, "runtimes", "win-x64", "native", "bass.dll")), Is.True);

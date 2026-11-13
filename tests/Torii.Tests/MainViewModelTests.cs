@@ -94,7 +94,7 @@ namespace Torii.Tests
         }
 
         [Test]
-        [Platform("Win")]
+        [Platform("Win,Linux")]
         public async Task SettingUpInstallsTheGameAndOmamori()
         {
             serveReleases("2.0.0");
