@@ -20,26 +20,30 @@ namespace Torii.Views
         private readonly Border line;
         private readonly Action<object, int> move;
         private readonly Func<bool> enabled;
+        private readonly ScrollViewer? scroller;
 
         private PointerPressedEventArgs? pressed;
         private object? pressedItem;
         private Point start;
 
-        public ReorderDrag(ItemsControl host, Border line, Action<object, int> move, Func<bool>? enabled = null)
+        public ReorderDrag(ItemsControl host, Border line, Action<object, int> move, Func<bool>? enabled = null, ScrollViewer? scroller = null)
         {
             this.host = host;
             this.line = line;
             this.move = move;
             this.enabled = enabled ?? (() => true);
+            this.scroller = scroller;
+
+            Interactive target = scroller == null ? host : scroller;
 
             host.AddHandler(InputElement.PointerPressedEvent, onPressed, RoutingStrategies.Tunnel, handledEventsToo: true);
             host.AddHandler(InputElement.PointerMovedEvent, onMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
             host.AddHandler(InputElement.PointerReleasedEvent, onReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
 
-            DragDrop.SetAllowDrop(host, true);
-            DragDrop.AddDragOverHandler(host, onDragOver);
-            DragDrop.AddDragLeaveHandler(host, (_, _) => line.IsVisible = false);
-            DragDrop.AddDropHandler(host, onDrop);
+            DragDrop.SetAllowDrop(target, true);
+            DragDrop.AddDragOverHandler(target, onDragOver);
+            DragDrop.AddDragLeaveHandler(target, (_, _) => line.IsVisible = false);
+            DragDrop.AddDropHandler(target, onDrop);
         }
 
         private void onPressed(object? sender, PointerPressedEventArgs e)
@@ -108,7 +112,25 @@ namespace Torii.Views
             e.DragEffects = DragDropEffects.Move;
             e.Handled = true;
 
+            autoScroll(e);
             showLine(gapAt(e));
+        }
+
+        private void autoScroll(DragEventArgs e)
+        {
+            if (scroller == null)
+                return;
+
+            const double edge = 32;
+            const double step = 14;
+
+            double y = e.GetPosition(scroller).Y;
+            double most = Math.Max(0, scroller.Extent.Height - scroller.Viewport.Height);
+
+            if (y < edge)
+                scroller.Offset = new Vector(scroller.Offset.X, Math.Max(0, scroller.Offset.Y - step));
+            else if (y > scroller.Bounds.Height - edge)
+                scroller.Offset = new Vector(scroller.Offset.X, Math.Min(most, scroller.Offset.Y + step));
         }
 
         private void onDrop(object? sender, DragEventArgs e)

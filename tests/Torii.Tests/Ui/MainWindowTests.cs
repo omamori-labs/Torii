@@ -367,6 +367,76 @@ namespace Torii.Tests
         }
 
         [AvaloniaTest]
+        public void DroppingAModCardBelowTheLastOneMovesItToTheEndAndSavesTheOrder()
+        {
+            LazerInstance alpha = threeMods();
+            MainWindow window = show();
+            InstanceViewModel instance = selected(window);
+            Rect last = boundsIn(window, modCards(window)[2]);
+
+            dragMod(window, instance.ModList.Mods[0], new Point(last.Center.X, last.Bottom - 2), dropIt: true);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(instance.ModList.Mods.Select(m => m.Label), Is.EqualTo(b2_c3_a1));
+                Assert.That(File.ReadAllLines(alpha.ModOrderFile), Is.EqualTo(b2_c3_a1));
+                Assert.That(modDropLine(window).IsVisible, Is.False);
+            }
+        }
+
+        [AvaloniaTest]
+        public void DroppingInTheEmptySpaceUnderTheModCardsMovesItToTheEnd()
+        {
+            threeMods();
+            MainWindow window = show();
+            InstanceViewModel instance = selected(window);
+            Rect last = boundsIn(window, modCards(window)[2]);
+
+            dragMod(window, instance.ModList.Mods[0], new Point(last.Center.X, last.Bottom + 40), dropIt: true);
+
+            Assert.That(instance.ModList.Mods.Select(m => m.Label), Is.EqualTo(b2_c3_a1));
+        }
+
+        [AvaloniaTest]
+        public void DraggingOverTheModsShowsTheInsertionLineWhereTheCardWouldLand()
+        {
+            threeMods();
+            MainWindow window = show();
+            InstanceViewModel instance = selected(window);
+            Rect second = boundsIn(window, modCards(window)[1]);
+
+            dragMod(window, instance.ModList.Mods[2], new Point(second.Center.X, second.Top + 2), dropIt: false);
+            Border line = modDropLine(window);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(line.IsVisible, Is.True);
+                Assert.That(boundsIn(window, line).Center.Y, Is.EqualTo(second.Top).Within(2));
+                Assert.That(instance.ModList.Mods.Select(m => m.Label), Is.EqualTo(a1_b2_c3));
+            }
+        }
+
+        [AvaloniaTest]
+        public void ModsCannotBeReorderedWhileSearching()
+        {
+            LazerInstance alpha = threeMods();
+            MainWindow window = show();
+            InstanceViewModel instance = selected(window);
+            instance.ModList.Search = "a1";
+            layout(window);
+            Rect only = boundsIn(window, modCards(window)[0]);
+
+            dragMod(window, instance.ModList.Mods[0], new Point(only.Center.X, only.Bottom + 40), dropIt: true);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(instance.ModList.Mods.Select(m => m.Label), Is.EqualTo(a1_b2_c3));
+                Assert.That(File.Exists(alpha.ModOrderFile), Is.False);
+                Assert.That(modDropLine(window).IsVisible, Is.False);
+            }
+        }
+
+        [AvaloniaTest]
         public void TypingInTheSearchBoxHidesOtherModCards()
         {
             LazerInstance alpha = fixture.Store.Create("alpha");
@@ -430,6 +500,10 @@ namespace Torii.Tests
 
         private static readonly string[] beta_alpha_gamma = ["beta", "alpha", "gamma"];
 
+        private static readonly string[] a1_b2_c3 = ["a1", "b2", "c3"];
+
+        private static readonly string[] b2_c3_a1 = ["b2", "c3", "a1"];
+
         private static readonly string?[] row_menu =["Remove", "Try again", "Open mod folder"];
 
         private static Border cardHost(ListBoxItem item) => item.GetVisualDescendants().OfType<Border>().First(b => b.ContextFlyout != null);
@@ -469,6 +543,29 @@ namespace Torii.Tests
 
             raise(window, transfer, point, DragDropEffects.Move, dropIt);
         }
+
+        private LazerInstance threeMods()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            UiFixture.AddMod(alpha, "a1");
+            UiFixture.AddMod(alpha, "b2");
+            UiFixture.AddMod(alpha, "c3");
+
+            return alpha;
+        }
+
+        private static void dragMod(MainWindow window, ModItemViewModel mod, Point point, bool dropIt)
+        {
+            var transfer = new DataTransfer();
+            transfer.Add(DataTransferItem.Create(ReorderDrag.FORMAT, mod));
+
+            raise(window, transfer, point, DragDropEffects.Move, dropIt);
+        }
+
+        private static List<Border> modCards(MainWindow window) =>
+            [.. window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<Border>().Where(b => b.ContextFlyout is MenuFlyout)];
+
+        private static Border modDropLine(MainWindow window) => window.GetVisualDescendants().OfType<Border>().First(b => b.Name == "ModDropLine");
 
         private static List<ListBoxItem> cards(MainWindow window) => [.. window.GetVisualDescendants().OfType<ListBoxItem>()];
 

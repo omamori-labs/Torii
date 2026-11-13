@@ -1,4 +1,5 @@
 using Avalonia.Controls;
+using Torii.ViewModels;
 
 namespace Torii.Views
 {
@@ -7,6 +8,13 @@ namespace Torii.Views
         public InstanceView()
         {
             InitializeComponent();
+
+            _ = new ReorderDrag(
+                ModItems,
+                ModDropLine,
+                (item, index) => (DataContext as InstanceViewModel)?.ModList.Move((ModItemViewModel)item, index),
+                () => (DataContext as InstanceViewModel)?.ModList.CanReorder ?? false,
+                ModScroller);
         }
     }
 }

@@ -59,8 +59,8 @@
             <TextBlock Text="No mods installed." IsVisible="{Binding NoMods}" Opacity="0.6" />
             <TextBlock Text="No mods match." IsVisible="{Binding ModList.NoMatches}" Opacity="0.6" />
 
-            <ScrollViewer IsVisible="{Binding ModList.HasMods}">
-                <ItemsControl ItemsSource="{Binding ModList.Visible}" IsEnabled="{Binding CanEdit}">
+            <ScrollViewer x:Name="ModScroller" IsVisible="{Binding ModList.HasMods}">
+                <ItemsControl x:Name="ModItems" ItemsSource="{Binding ModList.Visible}" IsEnabled="{Binding CanEdit}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ModItemViewModel">
                             <Border Background="#14FFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
@@ -101,6 +101,12 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
+            <Border x:Name="ModDropLine"
+                    Height="2"
+                    VerticalAlignment="Top"
+                    IsVisible="False"
+                    IsHitTestVisible="False"
+                    Background="{DynamicResource SystemAccentColor}" />
         </Panel>
     </DockPanel>
 </UserControl>
