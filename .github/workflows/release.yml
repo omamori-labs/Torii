@@ -57,7 +57,7 @@ jobs:
         run: |
           dotnet tool install -g vpk --version 1.2.161
 
-          $pre = if ($env:VERSION.Contains("-")) { @("--pre") } else { @() }
+          $pre = @(if ($env:VERSION.Contains("-")) { "--pre" })
           $github = @("--repoUrl", $env:REPO, "--token", $env:GH_TOKEN, "--outputDir", "artifacts/releases")
           $app = @("--packId", "omamori.Torii", "--packTitle", "Torii", "--packAuthors", "catforgor", "--packVersion", $env:VERSION, "--outputDir", "artifacts/releases")
 
