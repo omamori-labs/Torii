@@ -135,6 +135,112 @@ namespace Torii.Tests
         }
 
         [AvaloniaTest]
+        public void DroppingACardBelowTheLastOneMovesItToTheEnd()
+        {
+            fixture.Store.Create("alpha");
+            fixture.Store.Create("beta");
+            fixture.Store.Create("gamma");
+            MainWindow window = show();
+            var shell = (MainViewModel)window.DataContext!;
+            IReadOnlyList<string>? saved = null;
+            shell.RememberOrder = order => saved = order;
+            Rect last = boundsIn(window, cards(window)[2]);
+
+            dragCard(window, shell.Instances[0], new Point(last.Center.X, last.Bottom - 2), dropIt: true);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(shell.Instances.Select(i => i.Name), Is.EqualTo(beta_gamma_alpha));
+                Assert.That(saved!.Select(Path.GetFileName), Is.EqualTo(beta_gamma_alpha));
+                Assert.That(dropLine(window).IsVisible, Is.False);
+            }
+        }
+
+        [AvaloniaTest]
+        public void DroppingACardAboveTheFirstOneMovesItToTheTop()
+        {
+            fixture.Store.Create("alpha");
+            fixture.Store.Create("beta");
+            fixture.Store.Create("gamma");
+            MainWindow window = show();
+            var shell = (MainViewModel)window.DataContext!;
+            Rect first = boundsIn(window, cards(window)[0]);
+
+            dragCard(window, shell.Instances[2], new Point(first.Center.X, first.Top + 2), dropIt: true);
+
+            Assert.That(shell.Instances.Select(i => i.Name), Is.EqualTo(gamma_alpha_beta));
+        }
+
+        [AvaloniaTest]
+        public void DroppingACardBetweenTwoOthersPutsItThere()
+        {
+            fixture.Store.Create("alpha");
+            fixture.Store.Create("beta");
+            fixture.Store.Create("gamma");
+            MainWindow window = show();
+            var shell = (MainViewModel)window.DataContext!;
+            Rect second = boundsIn(window, cards(window)[1]);
+
+            dragCard(window, shell.Instances[0], new Point(second.Center.X, second.Bottom - 2), dropIt: true);
+
+            Assert.That(shell.Instances.Select(i => i.Name), Is.EqualTo(beta_alpha_gamma));
+        }
+
+        [AvaloniaTest]
+        public void DroppingACardWhereItAlreadyIsSavesNothing()
+        {
+            fixture.Store.Create("alpha");
+            fixture.Store.Create("beta");
+            MainWindow window = show();
+            var shell = (MainViewModel)window.DataContext!;
+            int saves = 0;
+            shell.RememberOrder = _ => saves++;
+            Rect first = boundsIn(window, cards(window)[0]);
+
+            dragCard(window, shell.Instances[0], first.Center, dropIt: true);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(saves, Is.Zero);
+                Assert.That(shell.Instances.Select(i => i.Name), Is.EqualTo(alpha_beta));
+            }
+        }
+
+        [AvaloniaTest]
+        public void DraggingOverTheListShowsTheInsertionLineWhereTheCardWouldLand()
+        {
+            fixture.Store.Create("alpha");
+            fixture.Store.Create("beta");
+            fixture.Store.Create("gamma");
+            MainWindow window = show();
+            var shell = (MainViewModel)window.DataContext!;
+            Rect second = boundsIn(window, cards(window)[1]);
+
+            dragCard(window, shell.Instances[2], new Point(second.Center.X, second.Top + 2), dropIt: false);
+            Border line = dropLine(window);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(line.IsVisible, Is.True);
+                Assert.That(boundsIn(window, line).Center.Y, Is.EqualTo(second.Top).Within(2));
+                Assert.That(shell.Instances.Select(i => i.Name), Is.EqualTo(alpha_beta_gamma));
+            }
+        }
+
+        [AvaloniaTest]
+        public void DroppingACardOutsideTheListChangesNothing()
+        {
+            fixture.Store.Create("alpha");
+            fixture.Store.Create("beta");
+            MainWindow window = show();
+            var shell = (MainViewModel)window.DataContext!;
+
+            dragCard(window, shell.Instances[0], new Point(window.Bounds.Width - 50, 300), dropIt: true);
+
+            Assert.That(shell.Instances.Select(i => i.Name), Is.EqualTo(alpha_beta));
+        }
+
+        [AvaloniaTest]
         public void CardMenuHostFillsTheWholeCard()
         {
             fixture.Store.Create("alpha");
@@ -314,7 +420,17 @@ namespace Torii.Tests
 
         private static readonly string?[] card_menu =["Open folder", "Rename", "Duplicate", "Delete"];
 
-        private static readonly string?[] row_menu = ["Remove", "Try again", "Open mod folder"];
+        private static readonly string[] alpha_beta = ["alpha", "beta"];
+
+        private static readonly string[] alpha_beta_gamma = ["alpha", "beta", "gamma"];
+
+        private static readonly string[] beta_gamma_alpha = ["beta", "gamma", "alpha"];
+
+        private static readonly string[] gamma_alpha_beta = ["gamma", "alpha", "beta"];
+
+        private static readonly string[] beta_alpha_gamma = ["beta", "alpha", "gamma"];
+
+        private static readonly string?[] row_menu =["Remove", "Try again", "Open mod folder"];
 
         private static Border cardHost(ListBoxItem item) => item.GetVisualDescendants().OfType<Border>().First(b => b.ContextFlyout != null);
 
@@ -332,12 +448,31 @@ namespace Torii.Tests
             foreach (string path in paths)
                 transfer.Add(DataTransferItem.Create(DataFormat.File, DroppedFile.At(path)));
 
-            var point = new Point(400, 200);
-            window.DragDrop(point, RawDragEventType.DragEnter, transfer, DragDropEffects.Copy);
-            window.DragDrop(point, RawDragEventType.DragOver, transfer, DragDropEffects.Copy);
-            window.DragDrop(point, RawDragEventType.Drop, transfer, DragDropEffects.Copy);
+            raise(window, transfer, new Point(400, 200), DragDropEffects.Copy, dropIt: true);
+        }
+
+        private static void raise(MainWindow window, DataTransfer transfer, Point point, DragDropEffects effects, bool dropIt)
+        {
+            window.DragDrop(point, RawDragEventType.DragEnter, transfer, effects);
+            window.DragDrop(point, RawDragEventType.DragOver, transfer, effects);
+
+            if (dropIt)
+                window.DragDrop(point, RawDragEventType.Drop, transfer, effects);
+
             Dispatcher.UIThread.RunJobs();
         }
+
+        private static void dragCard(MainWindow window, InstanceViewModel card, Point point, bool dropIt)
+        {
+            var transfer = new DataTransfer();
+            transfer.Add(DataTransferItem.Create(ReorderDrag.FORMAT, card));
+
+            raise(window, transfer, point, DragDropEffects.Move, dropIt);
+        }
+
+        private static List<ListBoxItem> cards(MainWindow window) => [.. window.GetVisualDescendants().OfType<ListBoxItem>()];
+
+        private static Border dropLine(MainWindow window) => window.GetVisualDescendants().OfType<Border>().First(b => b.Name == "InstanceDropLine");
 
         private static void layout(Window window)
         {
