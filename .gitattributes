@@ -24,6 +24,7 @@ build.ps1 text eol=lf
 # binaries
 *.dll binary
 *.png binary
+*.ico binary
 *.jpg binary
 
 # verify snapshots, compared byte for byte so git must not convert them

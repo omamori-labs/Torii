@@ -5,6 +5,7 @@
         x:Class="Torii.MainWindow"
         x:DataType="local:MainViewModel"
         Title="Torii"
+        Icon="/Assets/torii.ico"
         Width="560" Height="480"
         MinWidth="420" MinHeight="300">
     <DockPanel Margin="16">
