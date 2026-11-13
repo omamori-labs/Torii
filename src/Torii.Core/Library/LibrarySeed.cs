@@ -53,7 +53,7 @@ namespace Torii.Core.Library
             string sourceFiles = Path.Combine(source, "files");
 
             if (!File.Exists(sourceDatabase))
-                throw new InvalidOperationException("There is no osu! library there to import.");
+                throw new InvalidOperationException("There is no osu! library there to import. Pick osu!'s data folder, the one with client.realm in it.");
 
             if (!IsEmpty(library))
                 throw new InvalidOperationException("The library already has maps in it, and Torii won't mix them with another library.");

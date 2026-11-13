@@ -58,6 +58,8 @@ namespace Torii.ViewModels
 
         public Func<Task<string?>>? PickModZip { get; set; }
 
+        public Func<Task<string?>>? PickOsuFolder { get; set; }
+
         public bool CanEdit => !IsBusy && !OsuRunning;
 
         public ObservableCollection<OmamoriRelease> Releases { get; } = [];
@@ -159,13 +161,14 @@ namespace Torii.ViewModels
         public async Task ImportAsync()
         {
             string? source = seed.FindSource();
-            string? version = seed.ReadSourceVersion();
+
+            if (source == null && PickOsuFolder != null)
+                source = await PickOsuFolder();
 
             if (source == null)
-            {
-                refreshImport();
                 return;
-            }
+
+            string? version = seed.ReadSourceVersion();
 
             IsBusy = true;
             Progress = 0;
@@ -278,7 +281,7 @@ namespace Torii.ViewModels
 
         private bool canImport() => ImportAvailable && !IsBusy && !OsuRunning;
 
-        private void refreshImport() => ImportAvailable = seed.FindSource() != null && LibrarySeed.CanSeed(library, instance);
+        private void refreshImport() => ImportAvailable = LibrarySeed.CanSeed(library, instance);
 
         private void showProgress(OmamoriRelease release, SetupProgress progress)
         {

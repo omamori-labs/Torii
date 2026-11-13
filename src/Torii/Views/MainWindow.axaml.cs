@@ -35,6 +35,7 @@ namespace Torii.Views
                 return;
 
             model.PickModZip = pickModZip;
+            model.PickOsuFolder = pickOsuFolder;
             model.LoadReleasesCommand.Execute(null);
             osuCheck.Start();
         }
@@ -44,6 +45,17 @@ namespace Torii.Views
             osuCheck.Stop();
 
             base.OnClosed(e);
+        }
+
+        private async Task<string?> pickOsuFolder()
+        {
+            var picked = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Pick osu!'s data folder",
+                AllowMultiple = false,
+            });
+
+            return picked.Count > 0 ? picked[0].TryGetLocalPath() : null;
         }
 
         private async Task<string?> pickModZip()

@@ -291,9 +291,81 @@ namespace Torii.Tests
         }
 
         [Test]
-        public void ImportIsNotOfferedWithoutAnOsuLibrary()
+        public void ImportIsStillOfferedWhenNoOsuLibraryWasFound()
         {
-            Assert.That(create().ImportAvailable, Is.False);
+            Assert.That(create().ImportAvailable, Is.True);
+        }
+
+        [Test]
+        public async Task FolderIsAskedForWhenNoOsuLibraryWasFound()
+        {
+            string picked = Path.Combine(directory, "picked-osu");
+            placeOsuLibrary(picked);
+            MainViewModel model = create();
+            model.PickOsuFolder = () => Task.FromResult<string?>(picked);
+
+            await model.ImportCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(File.ReadAllText(Path.Combine(directory, "library", "client.realm")), Is.EqualTo("db"));
+                Assert.That(model.ImportAvailable, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task FolderIsNotAskedForWhenOneWasFound()
+        {
+            placeRealOsu();
+            MainViewModel model = create();
+            bool asked = false;
+            model.PickOsuFolder = () =>
+            {
+                asked = true;
+                return Task.FromResult<string?>(null);
+            };
+
+            await model.ImportCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(asked, Is.False);
+                Assert.That(File.Exists(Path.Combine(directory, "library", "client.realm")), Is.True);
+            }
+        }
+
+        [Test]
+        public async Task CancellingTheFolderPickerImportsNothing()
+        {
+            MainViewModel model = create();
+            model.PickOsuFolder = () => Task.FromResult<string?>(null);
+
+            await model.ImportCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(File.Exists(Path.Combine(directory, "library", "client.realm")), Is.False);
+                Assert.That(model.Status, Is.Null);
+                Assert.That(model.ImportAvailable, Is.True);
+                Assert.That(model.IsBusy, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task FolderWithoutAnOsuLibraryIsRefused()
+        {
+            string empty = Path.Combine(directory, "not-osu");
+            Directory.CreateDirectory(empty);
+            MainViewModel model = create();
+            model.PickOsuFolder = () => Task.FromResult<string?>(empty);
+
+            await model.ImportCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Status, Does.StartWith("Couldn't import from osu!.").And.Contains("client.realm"));
+                Assert.That(model.ImportAvailable, Is.True);
+            }
         }
 
         [Test]
@@ -468,9 +540,14 @@ namespace Torii.Tests
         private void placeRealOsu()
         {
             realOsuData = Path.Combine(directory, "real-osu");
-            Directory.CreateDirectory(Path.Combine(realOsuData, "files", "a", "ab"));
-            File.WriteAllText(Path.Combine(realOsuData, "files", "a", "ab", "hash"), "map");
-            File.WriteAllText(Path.Combine(realOsuData, "client.realm"), "db");
+            placeOsuLibrary(realOsuData);
+        }
+
+        private static void placeOsuLibrary(string folder)
+        {
+            Directory.CreateDirectory(Path.Combine(folder, "files", "a", "ab"));
+            File.WriteAllText(Path.Combine(folder, "files", "a", "ab", "hash"), "map");
+            File.WriteAllText(Path.Combine(folder, "client.realm"), "db");
         }
 
         private MainViewModel create()
