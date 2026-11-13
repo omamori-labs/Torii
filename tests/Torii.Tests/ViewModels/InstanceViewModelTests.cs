@@ -101,6 +101,22 @@ namespace Torii.Tests
         }
 
         [Test]
+        public async Task ReleaseControlsAreReadyOnlyOnceTheCheckHasFinished()
+        {
+            InstanceViewModel model = create();
+            bool before = model.ReleasesReady;
+
+            await model.LoadReleasesCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(before, Is.False);
+                Assert.That(model.ReleasesReady, Is.True);
+                Assert.That(model.Status, Does.Not.StartWith("Checking"));
+            }
+        }
+
+        [Test]
         public async Task FailingToLoadReleasesSaysSoAndLeavesNothingToInstall()
         {
             InstanceViewModel model = create();

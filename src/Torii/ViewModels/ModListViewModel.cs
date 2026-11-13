@@ -15,6 +15,9 @@ namespace Torii.ViewModels
         private readonly Action<string> problem;
         private readonly Func<string, Task>? openFolder;
 
+        private string search = string.Empty;
+        private ModFilter filter;
+
         public ModListViewModel(ModLibrary library, Action<string?> report, Action<string>? problem = null, Func<string, Task>? openFolder = null)
         {
             this.library = library;
@@ -26,7 +29,33 @@ namespace Torii.ViewModels
 
         public ObservableCollection<ModItemViewModel> Mods { get; } = [];
 
+        public ObservableCollection<ModItemViewModel> Visible { get; } = [];
+
         public bool HasMods => Mods.Count > 0;
+
+        public bool NoMatches => HasMods && Visible.Count == 0;
+
+        public string Search
+        {
+            get => search;
+            set
+            {
+                if (SetProperty(ref search, value ?? string.Empty))
+                    applyFilter();
+            }
+        }
+
+        public IReadOnlyList<ModFilter> Filters { get; } = [.. Enum.GetValues<ModFilter>()];
+
+        public ModFilter Filter
+        {
+            get => filter;
+            set
+            {
+                if (SetProperty(ref filter, value))
+                    applyFilter();
+            }
+        }
 
         public void Refresh()
         {
@@ -37,6 +66,7 @@ namespace Torii.ViewModels
                 foreach ((InstalledMod mod, ModItemViewModel row) in mods.Zip(Mods))
                     row.Mod = mod;
 
+                applyFilter();
                 return;
             }
 
@@ -45,6 +75,43 @@ namespace Torii.ViewModels
                 Mods.Add(new ModItemViewModel(this, mod));
 
             OnPropertyChanged(nameof(HasMods));
+            applyFilter();
+        }
+
+        private void applyFilter()
+        {
+            List<ModItemViewModel> matching = [.. Mods.Where(matches)];
+
+            if (!matching.SequenceEqual(Visible))
+            {
+                Visible.Clear();
+                foreach (ModItemViewModel row in matching)
+                    Visible.Add(row);
+            }
+
+            OnPropertyChanged(nameof(NoMatches));
+        }
+
+        private bool matches(ModItemViewModel row)
+        {
+            bool stateMatches = filter switch
+            {
+                ModFilter.On => row.Mod.State == ModState.On,
+                ModFilter.Off => row.Mod.State == ModState.Off,
+                ModFilter.Problems => row.Mod.State is ModState.Crashed or ModState.Problem,
+                _ => true,
+            };
+
+            if (!stateMatches)
+                return false;
+
+            string query = search.Trim();
+
+            return query.Length == 0
+                   || row.Label.Contains(query, StringComparison.OrdinalIgnoreCase)
+                   || (row.Mod.Manifest?.Id.Contains(query, StringComparison.OrdinalIgnoreCase) ?? false)
+                   || row.Byline.Contains(query, StringComparison.OrdinalIgnoreCase)
+                   || row.Description.Contains(query, StringComparison.OrdinalIgnoreCase);
         }
 
         public void AddFromZip(string zip)

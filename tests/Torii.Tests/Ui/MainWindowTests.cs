@@ -232,7 +232,7 @@ namespace Torii.Tests
                 UiFixture.AddMod(alpha, $"mod{i:00}");
 
             MainWindow window = show();
-            ScrollViewer scroller = window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<ScrollViewer>().First(s => s.IsEffectivelyVisible);
+            ScrollViewer scroller = window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<ScrollViewer>().First(s => s.IsEffectivelyVisible && !s.GetVisualAncestors().OfType<TextBox>().Any());
 
             using (Assert.EnterMultipleScope())
             {
@@ -258,6 +258,55 @@ namespace Torii.Tests
 
             Assert.That(cards, Has.Count.EqualTo(2));
             Assert.That(boundsIn(window, cards[0]).Intersects(boundsIn(window, cards[1])), Is.False);
+        }
+
+        [AvaloniaTest]
+        public void TypingInTheSearchBoxHidesOtherModCards()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            UiFixture.AddMod(alpha, "snow");
+            UiFixture.AddMod(alpha, "trail");
+            MainWindow window = show();
+            TextBox box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.PlaceholderText == "Search mods");
+
+            box.Text = "snow";
+            layout(window);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(box.IsEffectivelyVisible, Is.True);
+                Assert.That(window.GetVisualDescendants().OfType<InstanceView>().First().GetVisualDescendants().OfType<Border>().Count(b => b.ContextFlyout is MenuFlyout), Is.EqualTo(1));
+            }
+        }
+
+        [AvaloniaTest]
+        public void SkeletonsGiveWayToTheReleaseControlsOnceTheCheckFinishes()
+        {
+            fixture.Store.Create("alpha");
+            MainWindow window = show();
+            InstanceView view = window.GetVisualDescendants().OfType<InstanceView>().First();
+            ComboBox releases = view.GetVisualDescendants().OfType<ComboBox>().First();
+
+            Assert.That(() =>
+            {
+                Dispatcher.UIThread.RunJobs();
+                return releases.IsVisible;
+            }, Is.True.After(2000, 10));
+
+            layout(window);
+
+            Assert.That(view.GetVisualDescendants().OfType<Border>().Where(b => b.Classes.Contains("skeleton") && b.IsVisible), Is.Empty);
+        }
+
+        [AvaloniaTest]
+        public void SearchBoxIsHiddenWhenThereAreNoMods()
+        {
+            fixture.Store.Create("alpha");
+            MainWindow window = show();
+
+            TextBox box = window.GetVisualDescendants().OfType<TextBox>().First(t => t.PlaceholderText == "Search mods");
+
+            Assert.That(box.IsEffectivelyVisible, Is.False);
         }
 
         private static MenuFlyout modMenu(MainWindow window) =>

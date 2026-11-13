@@ -14,6 +14,13 @@ namespace Torii.Tests
     public class ModListViewModelTests
     {
         private static readonly string[] expected_labels = ["Patcher", "Plain"];
+        private static readonly string[] running_only = ["Running"];
+        private static readonly string[] stopped_only = ["Stopped"];
+        private static readonly string[] crashed_only = ["Crashed"];
+        private static readonly string[] snowman_only = ["Snowman"];
+        private static readonly string[] snow_only = ["Snowfall"];
+        private static readonly string[] trail_only = ["Cursor Trail"];
+        private static readonly string[] two_snow = ["Snowfall", "Snowman"];
 
         private string directory = null!;
         private LazerInstance instance = null!;
@@ -117,6 +124,130 @@ namespace Torii.Tests
                 Assert.That(list.Mods[1].Patches, Is.False);
                 Assert.That(list.Mods.Select(m => m.IsOn), Has.All.True);
             }
+        }
+
+        [Test]
+        public void SearchKeepsOnlyMatchingMods()
+        {
+            mod("a.snow", "Snowfall", author: "Mika");
+            mod("b.trail", "Cursor Trail", author: "Jun");
+            ModListViewModel list = create();
+
+            list.Search = "snow";
+            string[] byName = [.. list.Visible.Select(m => m.Label)];
+
+            list.Search = "jun";
+            string[] byAuthor = [.. list.Visible.Select(m => m.Label)];
+
+            list.Search = "B.TRAIL";
+            string[] byId = [.. list.Visible.Select(m => m.Label)];
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(byName, Is.EqualTo(snow_only));
+                Assert.That(byAuthor, Is.EqualTo(trail_only));
+                Assert.That(byId, Is.EqualTo(trail_only));
+                Assert.That(list.Mods, Has.Count.EqualTo(2));
+            }
+        }
+
+        [Test]
+        public void StateFilterShowsOnlyThatState()
+        {
+            mod("a.on", "Running");
+            mod("b.off", "Stopped");
+            mod("c.crashed", "Crashed");
+            crash("c.crashed");
+            ModListViewModel list = create();
+            list.Mods.Single(m => m.Label == "Stopped").IsOn = false;
+
+            list.Filter = ModFilter.On;
+            string[] on = [.. list.Visible.Select(m => m.Label)];
+
+            list.Filter = ModFilter.Off;
+            string[] off = [.. list.Visible.Select(m => m.Label)];
+
+            list.Filter = ModFilter.Problems;
+            string[] problems = [.. list.Visible.Select(m => m.Label)];
+
+            list.Filter = ModFilter.All;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(on, Is.EqualTo(running_only));
+                Assert.That(off, Is.EqualTo(stopped_only));
+                Assert.That(problems, Is.EqualTo(crashed_only));
+                Assert.That(list.Visible, Has.Count.EqualTo(3));
+            }
+        }
+
+        [Test]
+        public void StateFilterAndSearchCombine()
+        {
+            mod("a.snow", "Snowfall");
+            mod("b.snowman", "Snowman");
+            ModListViewModel list = create();
+            list.Mods.Single(m => m.Label == "Snowman").IsOn = false;
+
+            list.Filter = ModFilter.Off;
+            list.Search = "snow";
+
+            Assert.That(list.Visible.Select(m => m.Label), Is.EqualTo(snowman_only));
+        }
+
+        [Test]
+        public void SwitchingAModOffTakesItOutOfTheOnFilter()
+        {
+            mod("a.snow", "Snowfall");
+            ModListViewModel list = create();
+            list.Filter = ModFilter.On;
+
+            list.Mods[0].IsOn = false;
+
+            Assert.That(list.NoMatches, Is.True);
+        }
+
+        [Test]
+        public void ClearingTheSearchShowsEveryMod()
+        {
+            mod("a.snow", "Snowfall");
+            mod("b.trail", "Cursor Trail");
+            ModListViewModel list = create();
+
+            list.Search = "snow";
+            list.Search = "  ";
+
+            Assert.That(list.Visible, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public void SearchWithNoMatchSaysSo()
+        {
+            mod("a.snow", "Snowfall");
+            ModListViewModel list = create();
+
+            list.Search = "zzz";
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.Visible, Is.Empty);
+                Assert.That(list.NoMatches, Is.True);
+                Assert.That(list.HasMods, Is.True);
+            }
+        }
+
+        [Test]
+        public void ModsAddedWhileSearchingAreFiltered()
+        {
+            mod("a.snow", "Snowfall");
+            ModListViewModel list = create();
+            list.Search = "snow";
+
+            mod("b.snowman", "Snowman");
+            mod("c.trail", "Cursor Trail");
+            list.Refresh();
+
+            Assert.That(list.Visible.Select(m => m.Label), Is.EqualTo(two_snow));
         }
 
         [Test]

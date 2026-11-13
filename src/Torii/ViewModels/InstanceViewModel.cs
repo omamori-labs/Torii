@@ -120,6 +120,9 @@ namespace Torii.ViewModels
         [ObservableProperty]
         public partial string? Status { get; private set; }
 
+        [ObservableProperty]
+        public partial bool ReleasesReady { get; private set; }
+
         public string InstallLabel
         {
             get
@@ -259,8 +262,6 @@ namespace Torii.ViewModels
         [RelayCommand]
         public async Task LoadReleasesAsync()
         {
-            Status = "Checking for releases...";
-
             try
             {
                 var releases = await feed.ListAsync();
@@ -275,6 +276,10 @@ namespace Torii.ViewModels
             catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException)
             {
                 Status = $"Couldn't check for releases. {e.Message}";
+            }
+            finally
+            {
+                ReleasesReady = true;
             }
         }
 

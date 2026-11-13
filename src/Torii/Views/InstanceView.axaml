@@ -4,6 +4,23 @@
              xmlns:core="using:Torii.Core.Omamori"
              x:Class="Torii.Views.InstanceView"
              x:DataType="vm:InstanceViewModel">
+    <UserControl.Styles>
+        <Style Selector="Border.skeleton">
+            <Setter Property="Background" Value="#14FFFFFF" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="Height" Value="32" />
+            <Style.Animations>
+                <Animation Duration="0:0:1" IterationCount="INFINITE" PlaybackDirection="Alternate">
+                    <KeyFrame Cue="0%">
+                        <Setter Property="Opacity" Value="0.4" />
+                    </KeyFrame>
+                    <KeyFrame Cue="100%">
+                        <Setter Property="Opacity" Value="1" />
+                    </KeyFrame>
+                </Animation>
+            </Style.Animations>
+        </Style>
+    </UserControl.Styles>
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Spacing="8" Margin="0,0,0,16">
             <WrapPanel Orientation="Horizontal" ItemSpacing="8" LineSpacing="8">
@@ -11,6 +28,7 @@
                           SelectedItem="{Binding SelectedRelease}"
                           IsEnabled="{Binding !IsBusy}"
                           MinWidth="180"
+                          IsVisible="{Binding ReleasesReady}"
                           PlaceholderText="No releases">
                     <ComboBox.ItemTemplate>
                         <DataTemplate x:DataType="core:OmamoriRelease">
@@ -18,7 +36,9 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
-                <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" Classes.accent="{Binding !IsSetUp}" />
+                <Border Classes="skeleton" Width="180" IsVisible="{Binding !ReleasesReady}" />
+                <Border Classes="skeleton" Width="90" Height="30" IsVisible="{Binding !ReleasesReady}" />
+                <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" MinWidth="90" HorizontalContentAlignment="Center" IsVisible="{Binding ReleasesReady}" Classes.accent="{Binding !IsSetUp}" />
                 <Button Content="Play" Command="{Binding PlayCommand}" IsVisible="{Binding IsSetUp}" Classes="accent" />
                 <Button Content="Add mod" Command="{Binding AddModCommand}" IsVisible="{Binding IsSetUp}" />
                 <Button Content="Import from osu!" Command="{Binding ImportCommand}" IsVisible="{Binding ImportAvailable}" />
@@ -30,11 +50,17 @@
                        TextWrapping="Wrap" />
         </StackPanel>
 
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,0,0,8" IsVisible="{Binding ModList.HasMods}">
+            <TextBox Text="{Binding ModList.Search}" PlaceholderText="Search mods" />
+            <ComboBox Grid.Column="1" ItemsSource="{Binding ModList.Filters}" SelectedItem="{Binding ModList.Filter}" MinWidth="110" />
+        </Grid>
+
         <Panel>
             <TextBlock Text="No mods installed." IsVisible="{Binding NoMods}" Opacity="0.6" />
+            <TextBlock Text="No mods match." IsVisible="{Binding ModList.NoMatches}" Opacity="0.6" />
 
             <ScrollViewer IsVisible="{Binding ModList.HasMods}">
-                <ItemsControl ItemsSource="{Binding ModList.Mods}" IsEnabled="{Binding CanEdit}">
+                <ItemsControl ItemsSource="{Binding ModList.Visible}" IsEnabled="{Binding CanEdit}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ModItemViewModel">
                             <Border Background="#14FFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
