@@ -15,7 +15,7 @@ namespace Torii.ViewModels
         private readonly InstanceStore store;
         private readonly Func<LazerInstance, InstanceViewModel> createInstance;
 
-        public MainViewModel(InstanceStore store, Func<LazerInstance, InstanceViewModel> createInstance, LazerInstance? given = null)
+        public MainViewModel(InstanceStore store, Func<LazerInstance, InstanceViewModel> createInstance, LazerInstance? given = null, string? remembered = null)
         {
             this.store = store;
             this.createInstance = createInstance;
@@ -28,7 +28,9 @@ namespace Torii.ViewModels
             if (given != null && Instances.FirstOrDefault(i => sameFolder(i.Instance, given)) is null)
                 insert(wrap(given));
 
-            Selected = given == null ? Instances.FirstOrDefault() : Instances.First(i => sameFolder(i.Instance, given));
+            Selected = given != null
+                ? Instances.First(i => sameFolder(i.Instance, given))
+                : Instances.FirstOrDefault(i => string.Equals(i.Instance.Directory, remembered, StringComparison.OrdinalIgnoreCase)) ?? Instances.FirstOrDefault();
         }
 
         public ObservableCollection<InstanceViewModel> Instances { get; } = [];
@@ -44,6 +46,8 @@ namespace Torii.ViewModels
         public Func<NamePrompt, Task<string?>>? AskName { get; set; }
 
         public Func<string, Task>? OpenFolder { get; set; }
+
+        public Action<string?>? Remember { get; set; }
 
         [ObservableProperty]
         public partial InstanceViewModel? Selected { get; set; }
@@ -80,6 +84,8 @@ namespace Torii.ViewModels
 
         partial void OnSelectedChanged(InstanceViewModel? oldValue, InstanceViewModel? newValue)
         {
+            Remember?.Invoke(newValue?.Instance.Directory);
+
             if (newValue != null)
                 _ = newValue.EnsureReleasesAsync();
         }

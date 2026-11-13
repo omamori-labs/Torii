@@ -410,6 +410,86 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void RememberedInstanceIsSelectedWhenItStillExists()
+        {
+            store.Create("alpha");
+            LazerInstance beta = store.Create("beta");
+
+            MainViewModel model = create(null, beta.Directory);
+
+            Assert.That(model.Selected!.Name, Is.EqualTo("beta"));
+        }
+
+        [Test]
+        public void InstanceThatIsGoneFallsBackToTheFirst()
+        {
+            store.Create("alpha");
+
+            MainViewModel model = create(null, Path.Combine(directory, "instances", "deleted"));
+
+            Assert.That(model.Selected!.Name, Is.EqualTo("alpha"));
+        }
+
+        [Test]
+        public void CommandLineFolderBeatsTheRememberedOne()
+        {
+            store.Create("alpha");
+            LazerInstance beta = store.Create("beta");
+            var given = new LazerInstance(Path.Combine(directory, "somewhere", "testing"));
+
+            MainViewModel model = create(given, beta.Directory);
+
+            Assert.That(model.Selected!.Instance.Directory, Is.EqualTo(given.Directory));
+        }
+
+        [Test]
+        public void ChoosingAnInstanceIsReportedButStartingUpIsNot()
+        {
+            store.Create("alpha");
+            LazerInstance beta = store.Create("beta");
+            var reported = new List<string?>();
+            MainViewModel model = create(null, beta.Directory);
+            model.Remember = reported.Add;
+            int atStart = reported.Count;
+
+            model.Selected = model.Instances[0];
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(atStart, Is.Zero);
+                Assert.That(reported, Has.Count.EqualTo(1));
+                Assert.That(reported[0], Is.EqualTo(model.Instances[0].Instance.Directory));
+            }
+        }
+
+        [Test]
+        public async Task DeletingTheLastInstanceReportsNothingSelected()
+        {
+            store.Create("only");
+            MainViewModel model = create();
+            var reported = new List<string?>();
+            model.Remember = reported.Add;
+
+            await model.Selected!.DeleteCommand.ExecuteAsync(null);
+
+            Assert.That(reported, Has.Count.EqualTo(1).And.All.Null);
+        }
+
+        [Test]
+        public async Task RenamingReportsTheNewFolder()
+        {
+            store.Create("alpha");
+            MainViewModel model = create();
+            var reported = new List<string?>();
+            model.Remember = reported.Add;
+            model.AskName = _ => Task.FromResult<string?>("zzz");
+
+            await model.Selected!.RenameCommand.ExecuteAsync(null);
+
+            Assert.That(reported.Last(), Is.EqualTo(Path.Combine(directory, "instances", "zzz")));
+        }
+
+        [Test]
         public void SelectingAnInstanceLoadsItsReleasesOnce()
         {
             store.Create("alpha");
@@ -479,7 +559,7 @@ namespace Torii.Tests
                 """);
         }
 
-        private MainViewModel create(LazerInstance? given = null) => new MainViewModel(store, makeInstance, given) { ShowProblem = showProblem };
+        private MainViewModel create(LazerInstance? given = null, string? remembered = null) => new MainViewModel(store, makeInstance, given, remembered) { ShowProblem = showProblem };
 
         private Task showProblem(string message)
         {
