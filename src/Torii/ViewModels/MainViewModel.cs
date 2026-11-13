@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
@@ -15,14 +16,17 @@ namespace Torii.ViewModels
         private readonly InstanceStore store;
         private readonly Func<LazerInstance, InstanceViewModel> createInstance;
 
-        public MainViewModel(InstanceStore store, Func<LazerInstance, InstanceViewModel> createInstance, LazerInstance? given = null, string? remembered = null)
+        private bool customOrder;
+
+        public MainViewModel(InstanceStore store, Func<LazerInstance, InstanceViewModel> createInstance, LazerInstance? given = null, string? remembered = null, IReadOnlyList<string>? order = null)
         {
             this.store = store;
             this.createInstance = createInstance;
+            customOrder = order is { Count: > 0 };
 
             Instances.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasInstances));
 
-            foreach (LazerInstance instance in store.List())
+            foreach (LazerInstance instance in store.List().OrderBy(i => position(order, i)))
                 Instances.Add(wrap(instance));
 
             if (given != null && Instances.FirstOrDefault(i => sameFolder(i.Instance, given)) is null)
@@ -49,6 +53,21 @@ namespace Torii.ViewModels
 
         public Action<string?>? Remember { get; set; }
 
+        public Action<IReadOnlyList<string>>? RememberOrder { get; set; }
+
+        public void Move(InstanceViewModel instance, int index)
+        {
+            int from = Instances.IndexOf(instance);
+            int to = Math.Clamp(index, 0, Instances.Count - 1);
+
+            if (from < 0 || from == to)
+                return;
+
+            Instances.Move(from, to);
+            customOrder = true;
+            persistOrder();
+        }
+
         [ObservableProperty]
         public partial InstanceViewModel? Selected { get; set; }
 
@@ -74,6 +93,7 @@ namespace Torii.ViewModels
             {
                 InstanceViewModel created = wrap(store.Create(name));
                 insert(created);
+                persistOrder();
                 Selected = created;
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
@@ -109,10 +129,17 @@ namespace Torii.ViewModels
                     return;
 
                 bool wasSelected = Selected == target;
+                int index = Instances.IndexOf(target);
                 InstanceViewModel moved = wrap(renamed);
 
                 Instances.Remove(target);
-                insert(moved);
+
+                if (customOrder)
+                    Instances.Insert(index, moved);
+                else
+                    insert(moved);
+
+                persistOrder();
 
                 if (wasSelected)
                     Selected = moved;
@@ -137,6 +164,7 @@ namespace Torii.ViewModels
                 InstanceViewModel created = wrap(copy);
 
                 insert(created);
+                persistOrder();
                 Selected = created;
             }
             catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
@@ -163,6 +191,7 @@ namespace Torii.ViewModels
             int index = Instances.IndexOf(doomed);
             bool wasSelected = Selected == doomed;
             Instances.Remove(doomed);
+            persistOrder();
 
             if (wasSelected)
                 Selected = Instances.Count == 0 ? null : Instances[Math.Min(index, Instances.Count - 1)];
@@ -191,8 +220,27 @@ namespace Torii.ViewModels
             return model;
         }
 
+        private static int position(IReadOnlyList<string>? order, LazerInstance instance)
+        {
+            int index = order == null ? -1 : order.ToList().FindIndex(path => string.Equals(path, instance.Directory, StringComparison.OrdinalIgnoreCase));
+
+            return index < 0 ? int.MaxValue : index;
+        }
+
+        private void persistOrder()
+        {
+            if (customOrder)
+                RememberOrder?.Invoke([.. Instances.Select(i => i.Instance.Directory)]);
+        }
+
         private void insert(InstanceViewModel model)
         {
+            if (customOrder)
+            {
+                Instances.Add(model);
+                return;
+            }
+
             int index = Instances.TakeWhile(i => string.Compare(i.Name, model.Name, StringComparison.OrdinalIgnoreCase) < 0).Count();
             Instances.Insert(index, model);
         }

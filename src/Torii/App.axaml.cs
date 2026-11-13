@@ -38,7 +38,7 @@ namespace Torii
                 var settings = new SettingsStore(SettingsStore.DefaultFile());
                 AppSettings current = settings.Load();
 
-                var shell = new MainViewModel(store, instance => new InstanceViewModel(instance, feed, setup, library, seed), given, current.SelectedInstance);
+                var shell = new MainViewModel(store, instance => new InstanceViewModel(instance, feed, setup, library, seed), given, current.SelectedInstance, current.InstanceOrder);
                 var window = new MainWindow { DataContext = shell };
 
                 if (current.WindowWidth is double width && current.WindowHeight is double height)
@@ -48,7 +48,10 @@ namespace Torii
                 }
 
                 if (given == null)
+                {
                     shell.Remember = directory => settings.Save(current = current with { SelectedInstance = directory });
+                    shell.RememberOrder = order => settings.Save(current = current with { InstanceOrder = order });
+                }
 
                 window.Closing += (_, _) =>
                 {

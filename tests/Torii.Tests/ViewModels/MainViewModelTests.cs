@@ -31,6 +31,16 @@ namespace Torii.Tests
 
         private static readonly string[] alpha_and_copy = ["alpha", "alpha copy"];
 
+        private static readonly string[] gamma_alpha_beta_delta = ["gamma", "alpha", "beta", "delta"];
+
+        private static readonly string[] gamma_alpha_beta = ["gamma", "alpha", "beta"];
+
+        private static readonly string[] beta_alpha = ["beta", "alpha"];
+
+        private static readonly string[] beta_alpha_aaa = ["beta", "alpha", "aaa"];
+
+        private static readonly string[] zzz_alpha = ["zzz", "alpha"];
+
         private string directory = null!;
         private InstanceStore store = null!;
         private RouteHandler handler = null!;
@@ -77,6 +87,127 @@ namespace Torii.Tests
                 Assert.That(model.Selected!.Name, Is.EqualTo("alpha"));
                 Assert.That(model.HasInstances, Is.True);
             }
+        }
+
+        [Test]
+        public void SavedOrderIsAppliedAndUnlistedInstancesComeLastByName()
+        {
+            LazerInstance alpha = store.Create("alpha");
+            store.Create("beta");
+            LazerInstance gamma = store.Create("gamma");
+            store.Create("delta");
+
+            MainViewModel model = create(order: [gamma.Directory, alpha.Directory]);
+
+            Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(gamma_alpha_beta_delta));
+        }
+
+        [Test]
+        public void OrderEntriesForInstancesThatAreGoneAreIgnored()
+        {
+            LazerInstance alpha = store.Create("alpha");
+            store.Create("beta");
+
+            MainViewModel model = create(order: [Path.Combine(directory, "instances", "gone"), alpha.Directory]);
+
+            Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(alpha_beta));
+        }
+
+        [Test]
+        public void MovingAnInstanceReordersItAndSavesTheOrder()
+        {
+            store.Create("alpha");
+            store.Create("beta");
+            store.Create("gamma");
+            MainViewModel model = create();
+            IReadOnlyList<string>? saved = null;
+            model.RememberOrder = order => saved = order;
+
+            model.Move(model.Instances[2], 0);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(gamma_alpha_beta));
+                Assert.That(saved!.Select(Path.GetFileName), Is.EqualTo(gamma_alpha_beta));
+            }
+        }
+
+        [Test]
+        public void MovingPastTheEndsStaysInsideTheList()
+        {
+            store.Create("alpha");
+            store.Create("beta");
+            MainViewModel model = create();
+
+            model.Move(model.Instances[0], 99);
+
+            Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(beta_alpha));
+        }
+
+        [Test]
+        public void NothingIsSavedUntilTheOrderIsChanged()
+        {
+            store.Create("alpha");
+            MainViewModel model = create();
+            int saves = 0;
+            model.RememberOrder = _ => saves++;
+            model.AskName = _ => Task.FromResult<string?>("beta");
+
+            model.NewInstanceCommand.Execute(null);
+
+            Assert.That(saves, Is.Zero);
+        }
+
+        [Test]
+        public async Task NewInstanceGoesLastOnceThereIsAnOrder()
+        {
+            LazerInstance alpha = store.Create("alpha");
+            LazerInstance beta = store.Create("beta");
+            MainViewModel model = create(order: [beta.Directory, alpha.Directory]);
+            IReadOnlyList<string>? saved = null;
+            model.RememberOrder = order => saved = order;
+            model.AskName = _ => Task.FromResult<string?>("aaa");
+
+            await model.NewInstanceCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(beta_alpha_aaa));
+                Assert.That(saved!.Select(Path.GetFileName), Is.EqualTo(beta_alpha_aaa));
+            }
+        }
+
+        [Test]
+        public async Task RenamingKeepsThePositionInACustomOrder()
+        {
+            LazerInstance alpha = store.Create("alpha");
+            LazerInstance beta = store.Create("beta");
+            MainViewModel model = create(order: [beta.Directory, alpha.Directory]);
+            IReadOnlyList<string>? saved = null;
+            model.RememberOrder = order => saved = order;
+            model.AskName = _ => Task.FromResult<string?>("zzz");
+
+            await model.Instances[0].RenameCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Instances.Select(i => i.Name), Is.EqualTo(zzz_alpha));
+                Assert.That(saved!.Select(Path.GetFileName), Is.EqualTo(zzz_alpha));
+            }
+        }
+
+        [Test]
+        public async Task DeletingDropsTheInstanceFromTheSavedOrder()
+        {
+            LazerInstance alpha = store.Create("alpha");
+            LazerInstance beta = store.Create("beta");
+            MainViewModel model = create(order: [beta.Directory, alpha.Directory]);
+            IReadOnlyList<string>? saved = null;
+            model.RememberOrder = order => saved = order;
+
+            await model.Instances[0].DeleteCommand.ExecuteAsync(null);
+
+            Assert.That(saved!.Select(Path.GetFileName), Is.EqualTo(only_alpha));
         }
 
         [Test]
@@ -632,7 +763,7 @@ namespace Torii.Tests
                 """);
         }
 
-        private MainViewModel create(LazerInstance? given = null, string? remembered = null) => new MainViewModel(store, makeInstance, given, remembered) { ShowProblem = showProblem };
+        private MainViewModel create(LazerInstance? given = null, string? remembered = null, IReadOnlyList<string>? order = null) => new MainViewModel(store, makeInstance, given, remembered, order) { ShowProblem = showProblem };
 
         private Task showProblem(string message)
         {

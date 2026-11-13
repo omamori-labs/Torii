@@ -8,6 +8,8 @@ namespace Torii.Tests
     [TestFixture]
     public class SettingsStoreTests
     {
+        private static readonly string[] only_good = ["good"];
+
         private string directory = null!;
         private string file = null!;
         private SettingsStore store = null!;
@@ -42,6 +44,36 @@ namespace Torii.Tests
             {
                 Assert.That(saved, Is.True);
                 Assert.That(store.Load(), Is.EqualTo(settings));
+            }
+        }
+
+        [Test]
+        public void InstanceOrderComesBackInTheSameOrder()
+        {
+            string[] order = [Path.Combine(directory, "b"), Path.Combine(directory, "a")];
+
+            store.Save(new AppSettings(InstanceOrder: order));
+
+            Assert.That(store.Load().InstanceOrder, Is.EqualTo(order));
+        }
+
+        [Test]
+        public void EmptyOrBrokenInstanceOrderIsIgnored()
+        {
+            File.WriteAllText(file, """{ "selectedInstance": "kept", "instanceOrder": [1, "", null, "good", {}] }""");
+            AppSettings loaded = store.Load();
+
+            File.WriteAllText(file, """{ "instanceOrder": "not a list" }""");
+            AppSettings notAList = store.Load();
+
+            File.WriteAllText(file, """{ "instanceOrder": [] }""");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(loaded.InstanceOrder, Is.EqualTo(only_good));
+                Assert.That(loaded.SelectedInstance, Is.EqualTo("kept"));
+                Assert.That(notAList.InstanceOrder, Is.Null);
+                Assert.That(store.Load().InstanceOrder, Is.Null);
             }
         }
 
