@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core;
 using Torii.Core.Lazer;
+using Torii.Core.Library;
 using Torii.Core.Releases;
 using Torii.ViewModels;
 
@@ -20,12 +21,16 @@ namespace Torii.Tests
     {
         private const string lazer = "2026.1005.0-lazer";
 
+        private static readonly string[] link_then_start = ["link", "start"];
+
         private string directory = null!;
         private LazerInstance instance = null!;
         private RouteHandler handler = null!;
         private HttpClient http = null!;
         private bool osuRunning;
         private List<ProcessStartInfo> started = null!;
+        private List<string> events = null!;
+        private bool linkAllowed;
         private Action? launched;
 
         [SetUp]
@@ -39,6 +44,8 @@ namespace Torii.Tests
             http = new HttpClient(handler);
             osuRunning = false;
             started = [];
+            events = [];
+            linkAllowed = true;
             launched = null;
         }
 
@@ -165,28 +172,57 @@ namespace Torii.Tests
         }
 
         [Test]
-        public void PlayingStartsTheInstancesGame()
+        public async Task PlayingStartsTheInstancesGame()
         {
             placeGame();
             MainViewModel model = create();
 
-            model.PlayCommand.Execute(null);
+            await model.PlayCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(started.Single().FileName, Is.EqualTo(instance.Executable));
                 Assert.That(model.Status, Is.EqualTo("Starting osu!..."));
+                Assert.That(model.IsBusy, Is.False);
             }
         }
 
         [Test]
-        public void OnceTheGameRunsItCannotBeStartedAgain()
+        public async Task PlayingLinksTheLibraryBeforeStarting()
+        {
+            placeGame();
+            MainViewModel model = create();
+
+            await model.PlayCommand.ExecuteAsync(null);
+
+            Assert.That(events, Is.EqualTo(link_then_start));
+        }
+
+        [Test]
+        public async Task GameIsNotStartedWhenTheLibraryCantBeLinked()
+        {
+            placeGame();
+            MainViewModel model = create();
+            linkAllowed = false;
+
+            await model.PlayCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(started, Is.Empty);
+                Assert.That(model.Status, Does.StartWith("Couldn't start osu!."));
+                Assert.That(model.IsBusy, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task OnceTheGameRunsItCannotBeStartedAgain()
         {
             placeGame();
             MainViewModel model = create();
             launched = () => osuRunning = true;
 
-            model.PlayCommand.Execute(null);
+            await model.PlayCommand.ExecuteAsync(null);
 
             using (Assert.EnterMultipleScope())
             {
@@ -197,13 +233,13 @@ namespace Torii.Tests
         }
 
         [Test]
-        public void GameThatFailsToStartSaysWhy()
+        public async Task GameThatFailsToStartSaysWhy()
         {
             placeGame();
             MainViewModel model = create();
             launched = () => throw new Win32Exception("blocked");
 
-            model.PlayCommand.Execute(null);
+            await model.PlayCommand.ExecuteAsync(null);
 
             Assert.That(model.Status, Is.EqualTo("Couldn't start osu!. blocked"));
         }
@@ -306,9 +342,16 @@ namespace Torii.Tests
             {
                 launched?.Invoke();
                 started.Add(info);
+                events.Add("start");
             });
 
-            return new MainViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), () => osuRunning, launcher);
+            var library = new SharedLibrary(Path.Combine(directory, "library"), (_, _) =>
+            {
+                events.Add("link");
+                return linkAllowed;
+            }, () => false);
+
+            return new MainViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), library, () => osuRunning, launcher);
         }
 
         private void serveReleases(params string[] versions)

@@ -45,6 +45,9 @@ namespace Torii.Core.Library
             if (!File.Exists(markerFile))
                 File.WriteAllText(markerFile, string.Empty);
 
+            if (isDone(instance.FilesDirectory, FilesDirectory, isDirectory: true) && isDone(instance.DatabaseFile, DatabaseFile, isDirectory: false))
+                return;
+
             if (!canLink())
             {
                 if (elevate?.Invoke(instance, Root) != true)
@@ -57,14 +60,22 @@ namespace Torii.Core.Library
             attach(instance.DatabaseFile, DatabaseFile, isDirectory: false);
         }
 
-        private static void attach(string local, string shared, bool isDirectory)
+        private static string? target(string local, bool isDirectory)
         {
             FileSystemInfo info = isDirectory ? new DirectoryInfo(local) : new FileInfo(local);
 
-            if (info.LinkTarget is string current)
-            {
-                string resolved = Path.GetFullPath(current, Path.GetDirectoryName(local)!);
+            return info.LinkTarget is string current ? Path.GetFullPath(current, Path.GetDirectoryName(local)!) : null;
+        }
 
+        private static bool isDone(string local, string shared, bool isDirectory) =>
+            target(local, isDirectory) is string resolved
+                ? Paths.Same(resolved, shared)
+                : !isDirectory && !File.Exists(local) && !File.Exists(shared);
+
+        private static void attach(string local, string shared, bool isDirectory)
+        {
+            if (target(local, isDirectory) is string resolved)
+            {
                 if (!Paths.Same(resolved, shared))
                     throw new InvalidOperationException($"{local} is linked to {resolved}, which is a different library.");
 

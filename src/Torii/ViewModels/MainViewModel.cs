@@ -10,6 +10,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Torii.Core;
 using Torii.Core.Lazer;
+using Torii.Core.Library;
 using Torii.Core.Mods;
 using Torii.Core.Omamori;
 using Torii.Core.Releases;
@@ -21,16 +22,18 @@ namespace Torii.ViewModels
         private readonly LazerInstance instance;
         private readonly ReleaseFeed feed;
         private readonly InstanceSetup setup;
+        private readonly SharedLibrary library;
         private readonly Func<bool> osuRunning;
         private readonly GameLauncher launcher;
 
         private string? installedVersion;
 
-        public MainViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, Func<bool>? osuRunning = null, GameLauncher? launcher = null)
+        public MainViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, SharedLibrary library, Func<bool>? osuRunning = null, GameLauncher? launcher = null)
         {
             this.instance = instance;
             this.feed = feed;
             this.setup = setup;
+            this.library = library;
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
             this.launcher = launcher ?? new GameLauncher();
 
@@ -177,16 +180,23 @@ namespace Torii.ViewModels
         }
 
         [RelayCommand(CanExecute = nameof(canPlay))]
-        public void Play()
+        public async Task PlayAsync()
         {
+            IsBusy = true;
+
             try
             {
+                await Task.Run(() => library.Attach(instance));
                 launcher.Launch(instance);
                 Status = "Starting osu!...";
             }
-            catch (Exception e) when (e is InvalidOperationException or Win32Exception or IOException)
+            catch (Exception e) when (e is InvalidOperationException or Win32Exception or IOException or UnauthorizedAccessException)
             {
                 Status = $"Couldn't start osu!. {e.Message}";
+            }
+            finally
+            {
+                IsBusy = false;
             }
 
             RefreshOsuRunning();

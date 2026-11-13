@@ -147,6 +147,18 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void LinkedInstanceNeedsNoPermission()
+        {
+            library.Attach(instance);
+            bool asked = false;
+            var restricted = new SharedLibrary(library.Root, (_, _) => asked = true, () => false);
+
+            restricted.Attach(instance);
+
+            Assert.That(asked, Is.False);
+        }
+
+        [Test]
         public void ElevationIsNotRequestedWhenLinksCanBeMade()
         {
             bool asked = false;

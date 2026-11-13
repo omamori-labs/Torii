@@ -4,6 +4,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Torii.Core;
 using Torii.Core.Lazer;
+using Torii.Core.Library;
 using Torii.Core.Releases;
 using Torii.ViewModels;
 using Torii.Views;
@@ -25,7 +26,7 @@ namespace Torii
 
                 desktop.MainWindow = new MainWindow
                 {
-                    DataContext = new MainViewModel(new LazerInstance(folder), new ReleaseFeed(http), new InstanceSetup(http)),
+                    DataContext = new MainViewModel(new LazerInstance(folder), new ReleaseFeed(http), new InstanceSetup(http), new SharedLibrary(SharedLibrary.DefaultDirectory(), ElevatedLink.Request)),
                 };
             }
 
