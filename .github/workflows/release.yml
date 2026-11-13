@@ -1,0 +1,66 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: "**/packages.lock.json"
+
+      - name: test
+        run: dotnet test Torii.slnx -c Release
+
+      - name: publish
+        run: dotnet publish src/Torii/Torii.csproj -c Release -r win-x64 --self-contained -o artifacts/publish/win-x64
+
+      # a lightweight tag on the wrong commit builds a different version than the tag says
+      - name: check the version
+        id: version
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG.Substring(1)
+          $built = (Get-Item artifacts/publish/win-x64/Torii.dll).VersionInfo.ProductVersion.Split('+')[0]
+          if ($built -ne $version) { throw "built $built, the tag says $version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      # packId isn't Torii, uninstalling removes %LOCALAPPDATA%\<packId> and the instance is in %LOCALAPPDATA%\Torii
+      - name: pack and release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          REPO: https://github.com/${{ github.repository }}
+        run: |
+          dotnet tool install -g vpk --version 1.2.161
+          $pre = if ($env:VERSION.Contains("-")) { @("--pre") } else { @() }
+
+          # the last release is what deltas are built against, the first release has none
+          vpk download github --repoUrl $env:REPO --token $env:GH_TOKEN --outputDir artifacts/releases @pre
+          if ($LASTEXITCODE -ne 0) { Write-Warning "no earlier release to build a delta from" }
+
+          vpk pack --packId omamori.Torii --packTitle Torii --packAuthors catforgor --packVersion $env:VERSION --packDir artifacts/publish/win-x64 --mainExe Torii.exe --outputDir artifacts/releases
+          if ($LASTEXITCODE -ne 0) { throw "vpk pack failed" }
+
+          vpk upload github --repoUrl $env:REPO --token $env:GH_TOKEN --outputDir artifacts/releases --publish --releaseName "Torii $env:VERSION" --tag $env:TAG @pre
+          if ($LASTEXITCODE -ne 0) { throw "vpk upload failed" }
