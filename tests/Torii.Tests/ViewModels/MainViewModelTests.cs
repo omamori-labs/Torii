@@ -23,6 +23,8 @@ namespace Torii.Tests
 
         private static readonly string[] link_then_start = ["link", "start"];
 
+        private static readonly string[] link_only = ["link"];
+
         private string directory = null!;
         private LazerInstance instance = null!;
         private RouteHandler handler = null!;
@@ -149,7 +151,7 @@ namespace Torii.Tests
             await model.LoadReleasesCommand.ExecuteAsync(null);
 
             osuRunning = true;
-            model.RefreshOsuRunning();
+            await model.RefreshOsuRunningAsync();
 
             using (Assert.EnterMultipleScope())
             {
@@ -211,6 +213,45 @@ namespace Torii.Tests
             {
                 Assert.That(started, Is.Empty);
                 Assert.That(model.Status, Does.StartWith("Couldn't start osu!."));
+                Assert.That(model.IsBusy, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task LibraryIsLinkedAgainWhenTheGameCloses()
+        {
+            placeGame();
+            MainViewModel model = create();
+            launched = () => osuRunning = true;
+            await model.PlayCommand.ExecuteAsync(null);
+            events.Clear();
+
+            osuRunning = false;
+            await model.RefreshOsuRunningAsync();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(events, Is.EqualTo(link_only));
+                Assert.That(model.OsuRunning, Is.False);
+                Assert.That(model.IsBusy, Is.False);
+            }
+        }
+
+        [Test]
+        public async Task GameThatClosesWithoutTheLibraryBeingLinkedSaysSo()
+        {
+            placeGame();
+            MainViewModel model = create();
+            launched = () => osuRunning = true;
+            await model.PlayCommand.ExecuteAsync(null);
+
+            osuRunning = false;
+            linkAllowed = false;
+            await model.RefreshOsuRunningAsync();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.Status, Does.StartWith("Couldn't move the game's data into the library."));
                 Assert.That(model.IsBusy, Is.False);
             }
         }

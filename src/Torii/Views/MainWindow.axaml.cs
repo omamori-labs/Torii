@@ -17,7 +17,11 @@ namespace Torii.Views
         {
             InitializeComponent();
 
-            osuCheck.Tick += (_, _) => (DataContext as MainViewModel)?.RefreshOsuRunning();
+            osuCheck.Tick += async (_, _) =>
+            {
+                if (DataContext is MainViewModel model)
+                    await model.RefreshOsuRunningAsync();
+            };
 
             // Mods can be dropped into the folder by hand
             Activated += (_, _) => (DataContext as MainViewModel)?.ModList.Refresh();

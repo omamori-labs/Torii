@@ -47,7 +47,7 @@ namespace Torii.ViewModels
             Summary = string.Empty;
 
             refreshInstance();
-            RefreshOsuRunning();
+            OsuRunning = this.osuRunning();
         }
 
         public ModListViewModel ModList { get; }
@@ -112,14 +112,31 @@ namespace Torii.ViewModels
             }
         }
 
-        public void RefreshOsuRunning()
+        public async Task RefreshOsuRunningAsync()
         {
             bool wasRunning = OsuRunning;
             OsuRunning = osuRunning();
 
+            if (!wasRunning || OsuRunning)
+                return;
+
             // The game rewrites the state files while it runs
-            if (wasRunning && !OsuRunning)
-                ModList.Refresh();
+            ModList.Refresh();
+
+            IsBusy = true;
+
+            try
+            {
+                await Task.Run(() => library.Attach(instance));
+            }
+            catch (Exception e) when (e is InvalidOperationException or IOException or UnauthorizedAccessException)
+            {
+                Status = $"Couldn't move the game's data into the library. {e.Message}";
+            }
+            finally
+            {
+                IsBusy = false;
+            }
         }
 
         [RelayCommand(CanExecute = nameof(canAddMod))]
@@ -203,7 +220,7 @@ namespace Torii.ViewModels
                 IsBusy = false;
             }
 
-            RefreshOsuRunning();
+            await RefreshOsuRunningAsync();
         }
 
         private bool canInstall() => SelectedRelease != null && !IsBusy && !OsuRunning;
