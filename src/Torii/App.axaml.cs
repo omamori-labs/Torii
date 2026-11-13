@@ -5,6 +5,8 @@ using Avalonia.Markup.Xaml;
 using Torii.Core;
 using Torii.Core.Lazer;
 using Torii.Core.Releases;
+using Torii.ViewModels;
+using Torii.Views;
 
 namespace Torii
 {

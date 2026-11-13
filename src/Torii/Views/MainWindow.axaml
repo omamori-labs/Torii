@@ -1,9 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:local="using:Torii"
+        xmlns:vm="using:Torii.ViewModels"
         xmlns:core="using:Torii.Core.Omamori"
-        x:Class="Torii.MainWindow"
-        x:DataType="local:MainViewModel"
+        x:Class="Torii.Views.MainWindow"
+        x:DataType="vm:MainViewModel"
         Title="Torii"
         Icon="/Assets/torii.ico"
         Width="560" Height="480"
@@ -41,7 +41,7 @@
             <ScrollViewer IsVisible="{Binding HasMods}">
                 <ItemsControl ItemsSource="{Binding Mods}" IsEnabled="{Binding CanEdit}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="local:ModItemViewModel">
+                        <DataTemplate x:DataType="vm:ModItemViewModel">
                             <Grid ColumnDefinitions="*,Auto,Auto,Auto" ColumnSpacing="8" Margin="0,0,0,12">
                                 <StackPanel Spacing="2">
                                     <StackPanel Orientation="Horizontal" Spacing="6">

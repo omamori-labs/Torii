@@ -14,7 +14,7 @@ using Torii.Core.Mods;
 using Torii.Core.Omamori;
 using Torii.Core.Releases;
 
-namespace Torii
+namespace Torii.ViewModels
 {
     public sealed partial class MainViewModel : ObservableObject
     {

@@ -3,8 +3,9 @@ using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Torii.ViewModels;
 
-namespace Torii
+namespace Torii.Views
 {
     public partial class MainWindow : Window
     {

@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Torii.Core.Mods;
 
-namespace Torii
+namespace Torii.ViewModels
 {
     public sealed partial class ModItemViewModel : ObservableObject
     {

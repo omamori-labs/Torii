@@ -12,6 +12,7 @@ using Torii.Core;
 using Torii.Core.Lazer;
 using Torii.Core.Mods;
 using Torii.Core.Releases;
+using Torii.ViewModels;
 
 namespace Torii.Tests
 {
