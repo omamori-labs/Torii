@@ -17,4 +17,10 @@
     <ProjectReference Include="..\Torii.Core\Torii.Core.csproj" />
   </ItemGroup>
 
+  <Target Name="DropNativeSymbols" AfterTargets="ComputeResolvedFilesToPublishList">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(Filename)%(Extension)' == 'libSkiaSharp.pdb' or '%(Filename)%(Extension)' == 'libHarfBuzzSharp.pdb'" />
+    </ItemGroup>
+  </Target>
+
 </Project>
