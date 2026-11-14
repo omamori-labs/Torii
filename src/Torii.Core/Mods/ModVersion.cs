@@ -19,6 +19,10 @@ namespace Torii.Core.Mods
             this.prerelease = prerelease;
         }
 
+        public int Major => major;
+
+        public int Minor => minor;
+
         public static bool TryParse(string text, out ModVersion version)
         {
             version = null!;

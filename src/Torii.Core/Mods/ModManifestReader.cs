@@ -27,7 +27,7 @@ namespace Torii.Core.Mods
                 if (!entryPattern().IsMatch(entry))
                     throw new InvalidDataException($"{FILENAME} has an invalid entry");
 
-                return new ModInfo(id, required(root, "name"), required(root, "version"), optional(root, "author"), optional(root, "description"), entry, capabilities(root), dependencies(root));
+                return new ModInfo(id, required(root, "name"), required(root, "version"), optional(root, "author"), optional(root, "description"), entry, optional(root, "apiVersion"), capabilities(root), dependencies(root));
             }
             catch (JsonException)
             {

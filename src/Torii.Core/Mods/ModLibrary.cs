@@ -44,6 +44,7 @@ namespace Torii.Core.Mods
             JsonObject faults = history["mods"] as JsonObject ?? [];
             int session = number(history["session"]);
             var seen = new HashSet<string>(StringComparer.Ordinal);
+            string? api = OmamoriApi.Read(install.ApiAssembly);
 
             foreach (string directory in Directory.GetDirectories(install.ModsDirectory).OrderBy(d => d, StringComparer.OrdinalIgnoreCase))
             {
@@ -52,7 +53,7 @@ namespace Torii.Core.Mods
                 if (!File.Exists(manifestPath))
                     continue;
 
-                mods.Add(describe(directory, manifestPath, disabled, faults, session, seen));
+                mods.Add(describe(directory, manifestPath, disabled, faults, session, seen, api));
             }
 
             return ModDependencies.Apply(mods);
@@ -192,7 +193,7 @@ namespace Torii.Core.Mods
             File.Move(temporary, path, overwrite: true);
         }
 
-        private static InstalledMod describe(string directory, string manifestPath, HashSet<string> disabled, JsonObject faults, int session, HashSet<string> seen)
+        private static InstalledMod describe(string directory, string manifestPath, HashSet<string> disabled, JsonObject faults, int session, HashSet<string> seen, string? api)
         {
             ModInfo manifest;
 
@@ -211,6 +212,9 @@ namespace Torii.Core.Mods
 
             if (!File.Exists(Path.Combine(directory, manifest.Entry)))
                 return new InstalledMod(directory, manifest, ModState.Problem, $"{manifest.Entry} is missing");
+
+            if (api != null && ModApi.Problem(manifest.ApiVersion, api) is { } incompatible)
+                return new InstalledMod(directory, manifest, ModState.Problem, incompatible);
 
             if (disabled.Contains(manifest.Id))
                 return new InstalledMod(directory, manifest, ModState.Off, null);

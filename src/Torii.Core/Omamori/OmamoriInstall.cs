@@ -28,6 +28,8 @@ namespace Torii.Core.Omamori
 
         public string CoreAssembly => Path.Combine(CoreDirectory, CORE_FILENAME);
 
+        public string ApiAssembly => Path.Combine(CoreDirectory, "Omamori.API.dll");
+
         public string ModsDirectory => Path.Combine(Root, "mods");
 
         public string SettingsFile => Path.Combine(Root, "settings.json");

@@ -39,6 +39,21 @@ namespace Torii.Tests
             return stream.ToArray();
         }
 
+        public static byte[] ApiAssembly(string version)
+        {
+            var builder = new PersistedAssemblyBuilder(new AssemblyName("Omamori.API"), typeof(object).Assembly);
+            ModuleBuilder module = builder.DefineDynamicModule("Omamori.API");
+
+            TypeBuilder type = module.DefineType("Omamori.API.ApiInfo", TypeAttributes.Public | TypeAttributes.Abstract | TypeAttributes.Sealed);
+            type.DefineField("VERSION", typeof(string), FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal).SetConstant(version);
+            type.CreateType();
+
+            using var stream = new MemoryStream();
+            builder.Save(stream);
+
+            return stream.ToArray();
+        }
+
         // Same layout as a Velopack package
         public static byte[] LazerPackage(string version, params string[] extraEntries)
         {

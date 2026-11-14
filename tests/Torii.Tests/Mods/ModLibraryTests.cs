@@ -491,7 +491,50 @@ namespace Torii.Tests
             Assert.That(library.List().Select(m => m.Problem), Is.All.EqualTo("dependency cycle"));
         }
 
-        private static string manifest(string id, string name = "Cool Mod", string version = "1.0.0", string author = "", string description = "", string capabilities = "\"Cosmetic\"", string dependencies = "") => $$"""
+        [TestCase("0.7", null)]
+        [TestCase("0.2", null)]
+        [TestCase("0.8", "built for API 0.8, needs a newer Omamori (this one provides 0.7)")]
+        [TestCase("1.0", "built for API 1.0, Omamori provides 0.7 which isn't compatible")]
+        [TestCase("nope", "invalid apiVersion \"nope\", expected major.minor like \"0.7\"")]
+        public void ModBuiltForAnotherApiVersionHasAProblem(string built, string? expected)
+        {
+            api("0.7");
+            mod("coolmod", manifest("someone.coolmod", apiVersion: built));
+
+            InstalledMod listed = library.List().Single();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(listed.Problem, Is.EqualTo(expected));
+                Assert.That(listed.State, Is.EqualTo(expected == null ? ModState.On : ModState.Problem));
+            }
+        }
+
+        [Test]
+        public void WithoutTheApiAssemblyNoVersionIsChecked()
+        {
+            mod("coolmod", manifest("someone.coolmod", apiVersion: "9.9"));
+
+            Assert.That(library.List().Single().State, Is.EqualTo(ModState.On));
+        }
+
+        [Test]
+        public void ModNeedingAnIncompatibleModCantLoad()
+        {
+            api("0.7");
+            mod("base", manifest("mod.base", apiVersion: "1.0"));
+            mod("addon", manifest("mod.addon", dependencies: """{ "id": "mod.base" }""", apiVersion: "0.7"));
+
+            Assert.That(library.List().Single(m => m.Manifest!.Id == "mod.addon").Problem, Is.EqualTo("needs mod.base, which isn't installed or can't load"));
+        }
+
+        private void api(string version)
+        {
+            Directory.CreateDirectory(install.CoreDirectory);
+            File.WriteAllBytes(install.ApiAssembly, Fixtures.ApiAssembly(version));
+        }
+
+        private static string manifest(string id, string name = "Cool Mod", string version = "1.0.0", string author = "", string description = "", string capabilities = "\"Cosmetic\"", string dependencies = "", string apiVersion = "0.2") => $$"""
             {
               "id": "{{id}}",
               "name": "{{name}}",
@@ -499,7 +542,7 @@ namespace Torii.Tests
               "author": "{{author}}",
               "description": "{{description}}",
               "entry": "Mod.dll",
-              "apiVersion": "0.2",
+              "apiVersion": "{{apiVersion}}",
               "capabilities": [{{capabilities}}],
               "dependencies": [{{dependencies}}]
             }
