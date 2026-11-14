@@ -58,6 +58,25 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void SkippedUpdateComesBackAndBadValuesAreIgnored()
+        {
+            store.Save(new AppSettings(SkippedUpdate: "0.1.0-alpha.3"));
+            string? saved = store.Load().SkippedUpdate;
+
+            File.WriteAllText(file, """{ "skippedUpdate": 5 }""");
+            string? wrongType = store.Load().SkippedUpdate;
+
+            File.WriteAllText(file, """{ "skippedUpdate": "" }""");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(saved, Is.EqualTo("0.1.0-alpha.3"));
+                Assert.That(wrongType, Is.Null);
+                Assert.That(store.Load().SkippedUpdate, Is.Null);
+            }
+        }
+
+        [Test]
         public void EmptyOrBrokenInstanceOrderIsIgnored()
         {
             File.WriteAllText(file, """{ "selectedInstance": "kept", "instanceOrder": [1, "", null, "good", {}] }""");

@@ -27,7 +27,7 @@ namespace Torii.Core.Settings
                 if (!File.Exists(FilePath) || JsonNode.Parse(File.ReadAllText(FilePath)) is not JsonObject root)
                     return new AppSettings();
 
-                return new AppSettings(text(root, "selectedInstance"), size(root, "windowWidth"), size(root, "windowHeight"), list(root, "instanceOrder"));
+                return new AppSettings(text(root, "selectedInstance"), size(root, "windowWidth"), size(root, "windowHeight"), list(root, "instanceOrder"), text(root, "skippedUpdate"));
             }
             catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
             {
@@ -47,6 +47,9 @@ namespace Torii.Core.Settings
 
             if (settings.WindowHeight is double height)
                 root["windowHeight"] = height;
+
+            if (settings.SkippedUpdate != null)
+                root["skippedUpdate"] = settings.SkippedUpdate;
 
             if (settings.InstanceOrder is { Count: > 0 } order)
                 root["instanceOrder"] = new JsonArray([.. order.Select(path => JsonValue.Create(path))]);
