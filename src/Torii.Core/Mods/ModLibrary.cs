@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -39,7 +40,9 @@ namespace Torii.Core.Mods
                 return mods;
 
             HashSet<string> disabled = readDisabled();
-            JsonObject faults = readFaults();
+            JsonObject history = readState(install.FaultsFile);
+            JsonObject faults = history["mods"] as JsonObject ?? [];
+            int session = number(history["session"]);
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
             foreach (string directory in Directory.GetDirectories(install.ModsDirectory).OrderBy(d => d, StringComparer.OrdinalIgnoreCase))
@@ -49,7 +52,7 @@ namespace Torii.Core.Mods
                 if (!File.Exists(manifestPath))
                     continue;
 
-                mods.Add(describe(directory, manifestPath, disabled, faults, seen));
+                mods.Add(describe(directory, manifestPath, disabled, faults, session, seen));
             }
 
             return mods;
@@ -189,7 +192,7 @@ namespace Torii.Core.Mods
             File.Move(temporary, path, overwrite: true);
         }
 
-        private static InstalledMod describe(string directory, string manifestPath, HashSet<string> disabled, JsonObject faults, HashSet<string> seen)
+        private static InstalledMod describe(string directory, string manifestPath, HashSet<string> disabled, JsonObject faults, int session, HashSet<string> seen)
         {
             ModInfo manifest;
 
@@ -212,28 +215,43 @@ namespace Torii.Core.Mods
             if (disabled.Contains(manifest.Id))
                 return new InstalledMod(directory, manifest, ModState.Off, null);
 
-            if (crash(faults, manifest) is string crashed)
-                return new InstalledMod(directory, manifest, ModState.Crashed, crashed);
+            (ModState state, string? problem) = crash(faults, session, manifest);
 
-            return new InstalledMod(directory, manifest, ModState.On, null);
+            return new InstalledMod(directory, manifest, state, problem);
         }
 
-        private static string? crash(JsonObject faults, ModInfo manifest)
+        private static (ModState State, string? Problem) crash(JsonObject faults, int session, ModInfo manifest)
         {
             if (faults[manifest.Id] is not JsonObject record)
-                return null;
+                return (ModState.On, null);
 
             // Omamori drops records for other versions
             if (text(record["version"]) != manifest.Version)
-                return null;
+                return (ModState.On, null);
 
-            int strikes = record["strikes"] is JsonValue value && value.TryGetValue(out int count) ? count : 0;
-            if (strikes < strikes_to_skip)
-                return null;
-
+            int strikes = number(record["strikes"]);
             string error = text(record["lastError"]);
-            return $"Crashed in {strikes} sessions in a row{(error.Length > 0 ? $" ({error})" : string.Empty)}";
+            string details = $"{when(record)}{(error.Length > 0 ? $" ({error})" : string.Empty)}";
+
+            if (strikes >= strikes_to_skip)
+                return (ModState.Crashed, $"Crashed in {strikes} sessions in a row{details}");
+
+            // The record stays after later clean launches
+            if (strikes > 0 && session > 0 && number(record["lastSession"]) == session)
+                return (ModState.On, $"Crashed the last time osu! ran{details}");
+
+            return (ModState.On, null);
         }
+
+        private static string when(JsonObject record)
+        {
+            if (!DateTimeOffset.TryParse(text(record["lastFault"]), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out DateTimeOffset at) || at.Year < 2000)
+                return string.Empty;
+
+            return $", {FormatCrashTime(at)}";
+        }
+
+        public static string FormatCrashTime(DateTimeOffset at) => at.ToLocalTime().ToString("d MMM 'at' HH:mm", CultureInfo.CurrentCulture);
 
         private HashSet<string> readDisabled()
         {
@@ -247,8 +265,6 @@ namespace Torii.Core.Mods
 
             return disabled;
         }
-
-        private JsonObject readFaults() => readState(install.FaultsFile)["mods"] as JsonObject ?? [];
 
         // Omamori starts fresh on a bad state file too
         private static JsonObject readState(string path)
@@ -264,6 +280,8 @@ namespace Torii.Core.Mods
 
             return [];
         }
+
+        private static int number(JsonNode? node) => node is JsonValue value && value.TryGetValue(out int n) ? n : 0;
 
         private static string text(JsonNode? node) => node is JsonValue value && value.TryGetValue(out string? s) ? s : string.Empty;
     }

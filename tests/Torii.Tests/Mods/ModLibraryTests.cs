@@ -12,6 +12,8 @@ namespace Torii.Tests
     [TestFixture]
     public class ModLibraryTests
     {
+        private static readonly string crash_time = ModLibrary.FormatCrashTime(new DateTimeOffset(2026, 11, 10, 20, 0, 0, TimeSpan.Zero));
+
         private string directory = null!;
         private OmamoriInstall install = null!;
         private ModLibrary library = null!;
@@ -123,17 +125,60 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(listed.State, Is.EqualTo(ModState.Crashed));
-                Assert.That(listed.Problem, Is.EqualTo("Crashed in 2 sessions in a row (NullReferenceException: boom)"));
+                Assert.That(listed.Problem, Is.EqualTo($"Crashed in 2 sessions in a row, {crash_time} (NullReferenceException: boom)"));
             }
         }
 
         [Test]
-        public void ModThatCrashedOnceStaysOn()
+        public void ModThatCrashedOnceInTheLastLaunchStaysOnAndSaysSo()
         {
             mod("coolmod", manifest("someone.coolmod", version: "1.0.0"));
             faults("someone.coolmod", "1.0.0", strikes: 1);
 
-            Assert.That(library.List().Single().State, Is.EqualTo(ModState.On));
+            InstalledMod listed = library.List().Single();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(listed.State, Is.EqualTo(ModState.On));
+                Assert.That(listed.Problem, Is.EqualTo($"Crashed the last time osu! ran, {crash_time} (NullReferenceException: boom)"));
+            }
+        }
+
+        [Test]
+        public void ModThatCrashedOnceBeforeACleanLaunchHasNoProblem()
+        {
+            mod("coolmod", manifest("someone.coolmod", version: "1.0.0"));
+            faults("someone.coolmod", "1.0.0", strikes: 1, lastSession: 6);
+
+            InstalledMod listed = library.List().Single();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(listed.State, Is.EqualTo(ModState.On));
+                Assert.That(listed.Problem, Is.Null);
+            }
+        }
+
+        [TestCase("\"\"")]
+        [TestCase("\"not a time\"")]
+        [TestCase("\"0001-01-01T00:00:00+00:00\"")]
+        [TestCase("5")]
+        public void CrashWithoutAUsableTimeLeavesTheTimeOut(string lastFault)
+        {
+            mod("coolmod", manifest("someone.coolmod", version: "1.0.0"));
+            faults("someone.coolmod", "1.0.0", strikes: 1, lastFault: lastFault);
+
+            Assert.That(library.List().Single().Problem, Is.EqualTo("Crashed the last time osu! ran (NullReferenceException: boom)"));
+        }
+
+        [Test]
+        public void HistoryWithoutALaunchCounterReportsNoOneOffCrash()
+        {
+            mod("coolmod", manifest("someone.coolmod", version: "1.0.0"));
+            Directory.CreateDirectory(install.Root);
+            File.WriteAllText(install.FaultsFile, """{ "mods": { "someone.coolmod": { "version": "1.0.0", "strikes": 1, "lastSession": 0, "lastError": "boom" } } }""");
+
+            Assert.That(library.List().Single().Problem, Is.Null);
         }
 
         [Test]
@@ -390,7 +435,7 @@ namespace Torii.Tests
         }
 
         // What Omamori's FaultHistory writes
-        private void faults(string id, string version, int strikes, string? alsoCrashed = null)
+        private void faults(string id, string version, int strikes, string? alsoCrashed = null, int lastSession = 7, string lastFault = "\"2026-11-10T20:00:00+00:00\"")
         {
             Directory.CreateDirectory(install.Root);
 
@@ -398,9 +443,9 @@ namespace Torii.Tests
                 {
                       "version": "{{version}}",
                       "strikes": {{strikes}},
-                      "lastSession": 7,
+                      "lastSession": {{lastSession}},
                       "lastError": "NullReferenceException: boom",
-                      "lastFault": "2026-11-10T20:00:00+00:00"
+                      "lastFault": {{lastFault}}
                     }
                 """;
 

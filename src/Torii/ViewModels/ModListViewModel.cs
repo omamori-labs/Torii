@@ -143,7 +143,7 @@ namespace Torii.ViewModels
             {
                 ModFilter.On => row.Mod.State == ModState.On,
                 ModFilter.Off => row.Mod.State == ModState.Off,
-                ModFilter.Problems => row.Mod.State is ModState.Crashed or ModState.Problem,
+                ModFilter.Problems => row.Problem.Length > 0,
                 _ => true,
             };
 

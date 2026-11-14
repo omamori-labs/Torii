@@ -14,6 +14,8 @@ namespace Torii.Tests
     public class ModListViewModelTests
     {
         private static readonly string[] expected_labels = ["Patcher", "Plain"];
+        private static readonly string[] only_wobbly = ["Wobbly"];
+        private static readonly string[] fine_and_wobbly = ["Fine", "Wobbly"];
         private static readonly string[] three_one_two = ["Three", "One", "Two"];
         private static readonly string[] folders_c_a_b = ["c.three", "a.one", "b.two"];
         private static readonly string[] two_one_newest = ["Two", "One", "Newest"];
@@ -318,6 +320,32 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void ModThatCrashedOnceShowsAWarningStaysOnAndCountsAsAProblem()
+        {
+            mod("a.fine", "Fine");
+            mod("b.wobbly", "Wobbly");
+            crash("b.wobbly", strikes: 1);
+            ModListViewModel list = create();
+            ModItemViewModel wobbly = list.Mods[1];
+
+            list.Filter = ModFilter.Problems;
+            string[] problems = [.. list.Visible.Select(m => m.Label)];
+
+            list.Filter = ModFilter.On;
+            string[] on = [.. list.Visible.Select(m => m.Label)];
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(wobbly.Problem, Does.StartWith("Crashed the last time osu! ran"));
+                Assert.That(wobbly.IsOn, Is.True);
+                Assert.That(wobbly.CanToggle, Is.True);
+                Assert.That(wobbly.CanRetry, Is.False);
+                Assert.That(problems, Is.EqualTo(only_wobbly));
+                Assert.That(on, Is.EqualTo(fine_and_wobbly));
+            }
+        }
+
+        [Test]
         public void StateFilterAndSearchCombine()
         {
             mod("a.snow", "Snowfall");
@@ -572,10 +600,10 @@ namespace Torii.Tests
 
         private ModListViewModel create() => new ModListViewModel(new ModLibrary(instance.Omamori, () => osuRunning), message => status = message);
 
-        private void crash(string id)
+        private void crash(string id, int strikes = 2)
         {
             File.WriteAllText(instance.Omamori.FaultsFile, $$"""
-                { "session": 7, "mods": { "{{id}}": { "version": "1.0.0", "strikes": 2, "lastSession": 7, "lastError": "boom" } } }
+                { "session": 7, "mods": { "{{id}}": { "version": "1.0.0", "strikes": {{strikes}}, "lastSession": 7, "lastError": "boom" } } }
                 """);
         }
 
