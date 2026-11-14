@@ -33,7 +33,7 @@ namespace Torii.Views
             DragDrop.AddDragOverHandler(this, onDragOver);
             DragDrop.AddDropHandler(this, onDrop);
 
-            _ = new ReorderDrag(InstanceList, InstanceDropLine, (item, index) => (DataContext as MainViewModel)?.Move((InstanceViewModel)item, index));
+            _ = new ReorderDrag(InstanceList, (item, index) => (DataContext as MainViewModel)?.Move((InstanceViewModel)item, index));
         }
 
         protected override void OnOpened(EventArgs e)

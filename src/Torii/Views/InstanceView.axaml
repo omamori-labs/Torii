@@ -129,12 +129,6 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </ScrollViewer>
-            <Border x:Name="ModDropLine"
-                    Height="2"
-                    VerticalAlignment="Top"
-                    IsVisible="False"
-                    IsHitTestVisible="False"
-                    Background="{DynamicResource SystemAccentColor}" />
         </Panel>
     </DockPanel>
 </UserControl>

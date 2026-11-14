@@ -63,7 +63,14 @@ namespace Torii.ViewModels
             if (from < 0 || from == to)
                 return;
 
+            InstanceViewModel? selected = Selected;
+
             Instances.Move(from, to);
+
+            // The list drops its selection when the selected item moves
+            if (Selected != selected)
+                Selected = selected;
+
             customOrder = true;
             persistOrder();
         }

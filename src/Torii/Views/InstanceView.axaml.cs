@@ -11,7 +11,6 @@ namespace Torii.Views
 
             _ = new ReorderDrag(
                 ModItems,
-                ModDropLine,
                 (item, index) => (DataContext as InstanceViewModel)?.ModList.Move((ModItemViewModel)item, index),
                 () => (DataContext as InstanceViewModel)?.ModList.CanReorder ?? false,
                 ModScroller);
