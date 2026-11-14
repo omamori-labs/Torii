@@ -74,6 +74,54 @@ namespace Torii.Tests
         }
 
         [AvaloniaTest]
+        public void ALiftedCardNeverGrowsPastItsOwnEdges()
+        {
+            threeInstances();
+            MainWindow window = show();
+            ListBoxItem item = cards(window)[0];
+            Rect before = corners(window, item);
+            Point start = before.Center;
+
+            press(window, start);
+            moveTo(window, new Point(start.X, start.Y + 10));
+            moveTo(window, new Point(start.X, start.Y + 60));
+            Rect during = corners(window, item);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(during.Width, Is.EqualTo(before.Width).Within(0.5));
+                Assert.That(during.Height, Is.EqualTo(before.Height).Within(0.5));
+                Assert.That(during.Left, Is.EqualTo(before.Left).Within(0.5));
+            }
+
+            release(window, new Point(start.X, start.Y + 60));
+        }
+
+        [AvaloniaTest]
+        public void ALiftedModCardNeverGrowsPastItsOwnEdges()
+        {
+            threeMods();
+            MainWindow window = show();
+            Border card = modCards(window)[0];
+            Rect before = corners(window, card);
+            Point grab = new Point(before.Left + 20, before.Center.Y);
+
+            press(window, grab);
+            moveTo(window, new Point(grab.X, grab.Y + 10));
+            moveTo(window, new Point(grab.X, grab.Y + 60));
+            Rect during = corners(window, card);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(during.Width, Is.EqualTo(before.Width).Within(0.5));
+                Assert.That(during.Height, Is.EqualTo(before.Height).Within(0.5));
+                Assert.That(during.Left, Is.EqualTo(before.Left).Within(0.5));
+            }
+
+            release(window, new Point(grab.X, grab.Y + 60));
+        }
+
+        [AvaloniaTest]
         public void ReleasingDropsTheCardAndSavesTheOrder()
         {
             threeInstances();
@@ -343,6 +391,9 @@ namespace Torii.Tests
         }
 
         private static Rect boundsIn(Visual root, Control control) => new Rect(control.TranslatePoint(new Point(0, 0), root) ?? default, control.Bounds.Size);
+
+        private static Rect corners(Visual root, Control control) =>
+            new Rect(control.TranslatePoint(new Point(0, 0), root) ?? default, control.TranslatePoint(new Point(control.Bounds.Width, control.Bounds.Height), root) ?? default);
 
         private static MainViewModel shellOf(MainWindow window) => (MainViewModel)window.DataContext!;
 

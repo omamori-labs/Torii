@@ -17,7 +17,6 @@ namespace Torii.Views
     public sealed class ReorderDrag
     {
         private const double threshold = 6;
-        private const double lift_scale = 1.02;
 
         private static readonly TimeSpan slide_time = TimeSpan.FromMilliseconds(150);
 
@@ -63,11 +62,10 @@ namespace Torii.Views
 
         private Visual viewport => scroller == null ? host : scroller;
 
-        private static TransformOperations shift(double y, double scale = 1)
+        private static TransformOperations shift(double y)
         {
-            TransformOperations.Builder builder = TransformOperations.CreateBuilder(2);
+            TransformOperations.Builder builder = TransformOperations.CreateBuilder(1);
             builder.AppendTranslate(0, y);
-            builder.AppendScale(scale, scale);
 
             return builder.Build();
         }
@@ -209,7 +207,7 @@ namespace Torii.Views
             double y = (viewport.TranslatePoint(last, panel) ?? default).Y;
             double top = Math.Clamp(y - grab, tops[0], Math.Max(tops[0], tops[^1] + heights[^1] - height));
 
-            dragged.RenderTransform = shift(top - tops[from], lift_scale);
+            dragged.RenderTransform = shift(top - tops[from]);
 
             int target = Enumerable.Range(0, all.Count).MinBy(index => Math.Abs(top - slotTop(index)));
 
