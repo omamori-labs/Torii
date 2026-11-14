@@ -27,7 +27,7 @@ namespace Torii.Core.Mods
                 if (!entryPattern().IsMatch(entry))
                     throw new InvalidDataException($"{FILENAME} has an invalid entry");
 
-                return new ModInfo(id, required(root, "name"), required(root, "version"), optional(root, "author"), optional(root, "description"), entry, capabilities(root));
+                return new ModInfo(id, required(root, "name"), required(root, "version"), optional(root, "author"), optional(root, "description"), entry, capabilities(root), dependencies(root));
             }
             catch (JsonException)
             {
@@ -55,6 +55,30 @@ namespace Torii.Core.Mods
             {
                 if (value.ValueKind == JsonValueKind.String)
                     list.Add(value.GetString()!);
+            }
+
+            return list;
+        }
+
+        private static List<ModDependency> dependencies(JsonElement root)
+        {
+            var list = new List<ModDependency>();
+
+            if (!root.TryGetProperty("dependencies", out JsonElement values) || values.ValueKind != JsonValueKind.Array)
+                return list;
+
+            foreach (JsonElement value in values.EnumerateArray())
+            {
+                if (value.ValueKind != JsonValueKind.Object)
+                    continue;
+
+                string id = optional(value, "id");
+
+                if (!idPattern().IsMatch(id))
+                    continue;
+
+                bool isOptional = value.TryGetProperty("optional", out JsonElement flag) && flag.ValueKind == JsonValueKind.True;
+                list.Add(new ModDependency(id, optional(value, "minVersion"), isOptional));
             }
 
             return list;

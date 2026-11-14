@@ -410,7 +410,88 @@ namespace Torii.Tests
             }
         }
 
-        private static string manifest(string id, string name = "Cool Mod", string version = "1.0.0", string author = "", string description = "", string capabilities = "\"Cosmetic\"") => $$"""
+        [Test]
+        public void ModNeedingAnInstalledModIsFine()
+        {
+            mod("base", manifest("mod.base", version: "1.2.0"));
+            mod("addon", manifest("mod.addon", dependencies: """{ "id": "mod.base", "minVersion": "1.0" }"""));
+
+            Assert.That(library.List().Select(m => m.Problem), Is.All.Null);
+        }
+
+        [Test]
+        public void ModNeedingAMissingModHasAProblem()
+        {
+            mod("addon", manifest("mod.addon", dependencies: """{ "id": "mod.base" }"""));
+
+            InstalledMod listed = library.List().Single();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(listed.Problem, Is.EqualTo("needs mod.base, which isn't installed or can't load"));
+                Assert.That(listed.State, Is.EqualTo(ModState.On));
+            }
+        }
+
+        [Test]
+        public void ModNeedingAModThatIsTurnedOffHasAProblem()
+        {
+            mod("base", manifest("mod.base"));
+            mod("addon", manifest("mod.addon", dependencies: """{ "id": "mod.base" }"""));
+            File.WriteAllText(install.SettingsFile, """{ "disabledMods": ["mod.base"] }""");
+
+            Assert.That(library.List().Single(m => m.Manifest!.Id == "mod.addon").Problem, Is.EqualTo("needs mod.base, which is turned off"));
+        }
+
+        [Test]
+        public void ModNeedingANewerVersionHasAProblem()
+        {
+            mod("base", manifest("mod.base", version: "1.0.0"));
+            mod("addon", manifest("mod.addon", dependencies: """{ "id": "mod.base", "minVersion": "1.2.0" }"""));
+
+            Assert.That(library.List().Single(m => m.Manifest!.Id == "mod.addon").Problem, Is.EqualTo("needs mod.base 1.2.0 or newer, 1.0.0 is installed"));
+        }
+
+        [TestCase("1.0.0-beta", "1.0.0", false)]
+        [TestCase("1.0.0", "1.0.0-beta", true)]
+        [TestCase("v1.2", "1.2.0", true)]
+        [TestCase("1.10.0", "1.9.0", true)]
+        [TestCase("1.0.0-beta.2", "1.0.0-beta.11", false)]
+        public void MinVersionFollowsSemverPrecedence(string installed, string minimum, bool satisfied)
+        {
+            mod("base", manifest("mod.base", version: installed));
+            mod("addon", manifest("mod.addon", dependencies: $$"""{ "id": "mod.base", "minVersion": "{{minimum}}" }"""));
+
+            Assert.That(library.List().Single(m => m.Manifest!.Id == "mod.addon").Problem == null, Is.EqualTo(satisfied));
+        }
+
+        [Test]
+        public void OptionalDependencyThatIsMissingIsFine()
+        {
+            mod("addon", manifest("mod.addon", dependencies: """{ "id": "mod.base", "optional": true }"""));
+
+            Assert.That(library.List().Single().Problem, Is.Null);
+        }
+
+        [Test]
+        public void ModNeedingASkippedModIsSkippedToo()
+        {
+            mod("a-top", manifest("mod.top", dependencies: """{ "id": "mod.middle" }"""));
+            mod("b-middle", manifest("mod.middle", dependencies: """{ "id": "mod.missing" }"""));
+
+            Assert.That(library.List().Single(m => m.Manifest!.Id == "mod.top").Problem, Is.EqualTo("needs mod.middle, which was skipped"));
+        }
+
+        [Test]
+        public void ModsNeedingEachOtherAreInACycle()
+        {
+            mod("a", manifest("mod.a", dependencies: """{ "id": "mod.b" }"""));
+            mod("b", manifest("mod.b", dependencies: """{ "id": "mod.a" }"""));
+
+            Assert.That(library.List().Select(m => m.Problem), Is.All.EqualTo("dependency cycle"));
+        }
+
+        private static string manifest(string id, string name = "Cool Mod", string version = "1.0.0", string author = "", string description = "", string capabilities = "\"Cosmetic\"", string dependencies = "") => $$"""
             {
               "id": "{{id}}",
               "name": "{{name}}",
@@ -419,7 +500,8 @@ namespace Torii.Tests
               "description": "{{description}}",
               "entry": "Mod.dll",
               "apiVersion": "0.2",
-              "capabilities": [{{capabilities}}]
+              "capabilities": [{{capabilities}}],
+              "dependencies": [{{dependencies}}]
             }
             """;
 

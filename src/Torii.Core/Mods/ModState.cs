@@ -2,7 +2,7 @@ namespace Torii.Core.Mods
 {
     public enum ModState
     {
-        // Omamori can still refuse it, e.g. a missing dependency
+        // Omamori can still refuse it, e.g. an incompatible API version
         On,
 
         Off,

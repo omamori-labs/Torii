@@ -55,7 +55,7 @@ namespace Torii.Core.Mods
                 mods.Add(describe(directory, manifestPath, disabled, faults, session, seen));
             }
 
-            return mods;
+            return ModDependencies.Apply(mods);
         }
 
         public void SetEnabled(string id, bool enabled)
