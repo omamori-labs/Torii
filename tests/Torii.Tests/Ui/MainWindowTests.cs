@@ -324,6 +324,75 @@ namespace Torii.Tests
         }
 
         [AvaloniaTest]
+        public void EmptyDropZoneFillsTheWholeModArea()
+        {
+            UiFixture.PlaceGame(fixture.Store.Create("alpha"));
+            MainWindow window = show();
+            Panel zone = window.GetVisualDescendants().OfType<Panel>().First(p => p.Name == "EmptyDropZone");
+            Rect area = boundsIn(window, (Control)zone.GetVisualParent()!);
+            Rect box = boundsIn(window, zone);
+            Rect dashed = boundsIn(window, zone.GetVisualDescendants().OfType<Avalonia.Controls.Shapes.Rectangle>().First());
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(box.Width, Is.EqualTo(area.Width).Within(1));
+                Assert.That(box.Height, Is.GreaterThan(area.Height - 12));
+                Assert.That(box.Height, Is.GreaterThan(200));
+                Assert.That(dashed.Width, Is.EqualTo(box.Width).Within(1));
+                Assert.That(dashed.Height, Is.EqualTo(box.Height).Within(1));
+                Assert.That(boundsIn(window, emptyHint(window)).Center.X, Is.EqualTo(box.Center.X).Within(2));
+                Assert.That(boundsIn(window, emptyHint(window)).Center.Y, Is.GreaterThan(box.Center.Y).And.LessThan(box.Bottom));
+            }
+        }
+
+        [AvaloniaTest]
+        public void EmptyDropZoneHasABigIconAndBigText()
+        {
+            UiFixture.PlaceGame(fixture.Store.Create("alpha"));
+            MainWindow window = show();
+            Panel zone = window.GetVisualDescendants().OfType<Panel>().First(p => p.Name == "EmptyDropZone");
+            Rect icon = boundsIn(window, zone.GetVisualDescendants().OfType<Optris.Icons.Avalonia.Icon>().First());
+            TextBlock hint = emptyHint(window);
+            Rect zoneBounds = boundsIn(window, zone);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(icon.Height, Is.GreaterThanOrEqualTo(64));
+                Assert.That(hint.FontSize, Is.GreaterThanOrEqualTo(20));
+                Assert.That(icon.Center.X, Is.EqualTo(zoneBounds.Center.X).Within(2));
+                Assert.That(boundsIn(window, hint).Bottom, Is.LessThan(zoneBounds.Bottom));
+                Assert.That(icon.Top, Is.GreaterThan(zoneBounds.Top));
+            }
+        }
+
+        [AvaloniaTest]
+        public void EmptyDropZoneEndsLevelWithTheBottomOfTheSidebar()
+        {
+            UiFixture.PlaceGame(fixture.Store.Create("alpha"));
+            MainWindow window = show();
+            Panel zone = window.GetVisualDescendants().OfType<Panel>().First(p => p.Name == "EmptyDropZone");
+            ListBox sidebar = window.GetVisualDescendants().OfType<ListBox>().First(l => l.Name == "InstanceList");
+
+            Assert.That(boundsIn(window, zone).Bottom, Is.EqualTo(boundsIn(window, sidebar).Bottom).Within(1));
+        }
+
+        [AvaloniaTest]
+        public void SidebarPanelHasRoundedCornersThatClipItsCards()
+        {
+            fixture.Store.Create("alpha");
+            MainWindow window = show();
+            ListBox list = window.GetVisualDescendants().OfType<ListBox>().First(l => l.Name == "InstanceList");
+            Border frame = list.GetVisualDescendants().OfType<Border>().First(b => b.Name == "border");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.CornerRadius, Is.EqualTo(new CornerRadius(4)));
+                Assert.That(frame.CornerRadius, Is.EqualTo(new CornerRadius(4)));
+                Assert.That(frame.ClipToBounds, Is.True);
+            }
+        }
+
+        [AvaloniaTest]
         public void SearchBoxIsHiddenWhenThereAreNoMods()
         {
             fixture.Store.Create("alpha");

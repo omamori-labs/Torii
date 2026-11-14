@@ -61,11 +61,11 @@
         </Grid>
 
         <Panel>
-            <Panel IsVisible="{Binding NoMods}" Width="320" Height="160" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Panel x:Name="EmptyDropZone" IsVisible="{Binding NoMods}">
                 <Rectangle Stroke="#40FFFFFF" StrokeThickness="2" StrokeDashArray="4,4" RadiusX="8" RadiusY="8" />
-                <StackPanel Spacing="6" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <icons:Icon Value="mdi-tray-arrow-down" FontSize="36" Opacity="0.6" HorizontalAlignment="Center" />
-                    <TextBlock Text="Drop a mod here" HorizontalAlignment="Center" />
+                <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <icons:Icon Value="mdi-tray-arrow-down" FontSize="72" Opacity="0.6" HorizontalAlignment="Center" />
+                    <TextBlock Text="Drop a mod here" FontSize="22" HorizontalAlignment="Center" />
                 </StackPanel>
             </Panel>
             <TextBlock Text="No mods match." IsVisible="{Binding ModList.NoMatches}" Opacity="0.6" />
