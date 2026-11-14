@@ -22,6 +22,8 @@ namespace Torii.Tests
             "mdi-alert",
             "mdi-alert-circle",
             "mdi-magnify",
+            "mdi-download",
+            "mdi-check-circle",
         ];
 
         [AvaloniaTest]

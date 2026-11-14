@@ -10,6 +10,7 @@ using Torii.Core.Lazer;
 using Torii.Core.Library;
 using Torii.Core.Releases;
 using Torii.Core.Settings;
+using Torii.Updates;
 using Torii.ViewModels;
 using Torii.Views;
 
@@ -39,7 +40,15 @@ namespace Torii
                 AppSettings current = settings.Load();
 
                 var shell = new MainViewModel(store, instance => new InstanceViewModel(instance, feed, setup, library, seed), given, current.SelectedInstance, current.InstanceOrder);
+
+                var updateLog = new UpdateLog(UpdateLog.DefaultFile());
+
+                shell.Update = new UpdateViewModel(new VelopackUpdateClient(updateLog), current.SkippedUpdate, version => settings.Save(current = current with { SkippedUpdate = version }), updateLog, () => shell.IsBusy);
+
+                _ = shell.Update.CheckAsync();
+
                 var window = new MainWindow { DataContext = shell };
+                window.Closed += (_, _) => shell.Update.ApplyOnExit();
 
                 if (current.WindowWidth is double width && current.WindowHeight is double height)
                 {
@@ -61,8 +70,6 @@ namespace Torii
 
                 desktop.MainWindow = window;
             }
-
-            _ = SelfUpdate.RunAsync();
 
             base.OnFrameworkInitializationCompleted();
         }

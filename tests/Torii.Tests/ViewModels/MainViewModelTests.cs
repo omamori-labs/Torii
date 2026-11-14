@@ -41,6 +41,8 @@ namespace Torii.Tests
 
         private static readonly string[] zzz_alpha = ["zzz", "alpha"];
 
+        private static readonly bool[] off_then_on = [false, true];
+
         private string directory = null!;
         private InstanceStore store = null!;
         private RouteHandler handler = null!;
@@ -750,6 +752,26 @@ namespace Torii.Tests
             model.RefreshMods();
 
             Assert.That(model.Selected!.ModsLabel, Is.EqualTo("1 mod"));
+        }
+
+        [Test]
+        public async Task RestartingIntoAnUpdateIsOffWhileAnInstanceIsBusy()
+        {
+            store.Create("alpha");
+            gameRunning = true;
+            MainViewModel model = create();
+            var update = new UpdateViewModel(new FakeUpdateClient { Offer = "0.1.0-alpha.3" }, busy: () => model.IsBusy);
+            model.Update = update;
+            await update.CheckAsync();
+            await update.UpdateCommand.ExecuteAsync(null);
+
+            var offered = new List<bool>();
+            update.RestartCommand.CanExecuteChanged += (_, _) => offered.Add(update.RestartCommand.CanExecute(null));
+
+            gameRunning = false;
+            await model.RefreshAsync();
+
+            Assert.That(offered, Is.EqualTo(off_then_on));
         }
 
         private static void mod(LazerInstance instance, string id)

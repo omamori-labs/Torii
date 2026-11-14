@@ -8,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Torii.Core.Instances;
 using Torii.Core.Lazer;
+using Torii.Updates;
 
 namespace Torii.ViewModels
 {
@@ -41,6 +42,8 @@ namespace Torii.ViewModels
 
         public bool HasInstances => Instances.Count > 0;
 
+        public bool IsBusy => Instances.Any(i => i.IsBusy);
+
         public Func<Task<string?>>? PickModZip { get; set; }
 
         public Func<Task<string?>>? PickOsuFolder { get; set; }
@@ -50,6 +53,8 @@ namespace Torii.ViewModels
         public Func<NamePrompt, Task<string?>>? AskName { get; set; }
 
         public Func<string, Task>? OpenFolder { get; set; }
+
+        public UpdateViewModel Update { get; set; } = new UpdateViewModel(new NullUpdateClient());
 
         public Action<string?>? Remember { get; set; }
 
@@ -223,6 +228,11 @@ namespace Torii.ViewModels
             model.RequestRename = () => renameAsync(model);
             model.RequestDuplicate = () => duplicateAsync(model);
             model.RequestDelete = () => deleteAsync(model);
+            model.PropertyChanged += (_, e) =>
+            {
+                if (e.PropertyName == nameof(InstanceViewModel.IsBusy))
+                    Update.BusyChanged();
+            };
 
             return model;
         }

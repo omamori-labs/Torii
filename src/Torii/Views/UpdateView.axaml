@@ -1,0 +1,75 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Torii.ViewModels"
+             xmlns:icons="using:Optris.Icons.Avalonia"
+             x:Class="Torii.Views.UpdateView"
+             x:DataType="vm:UpdateViewModel">
+    <UserControl.Styles>
+        <Style Selector="LayoutTransformControl#UpdateCardHost">
+            <Setter Property="LayoutTransform" Value="scaleY(0.001)" />
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="Transitions">
+                <Transitions>
+                    <TransformOperationsTransition Property="LayoutTransform" Duration="0:0:0.2" Easing="CubicEaseOut" />
+                    <DoubleTransition Property="Opacity" Duration="0:0:0.2" />
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="LayoutTransformControl#UpdateCardHost.shown">
+            <Setter Property="LayoutTransform" Value="scaleY(1)" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+        <Style Selector="icons|Icon">
+            <Setter Property="FontSize" Value="20" />
+            <Setter Property="VerticalAlignment" Value="Top" />
+        </Style>
+        <Style Selector="Button.accent">
+            <Setter Property="HorizontalAlignment" Value="Stretch" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button.quiet">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Padding" Value="8,4" />
+            <Setter Property="Opacity" Value="0.8" />
+        </Style>
+        <Style Selector="TextBlock.detail">
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+        <Style Selector="TextBlock.failed">
+            <Setter Property="Foreground" Value="Orange" />
+            <Setter Property="Opacity" Value="1" />
+        </Style>
+    </UserControl.Styles>
+    <LayoutTransformControl x:Name="UpdateCardHost"
+                            ClipToBounds="True"
+                            Classes.shown="{Binding IsVisible}"
+                            IsEnabled="{Binding IsVisible}">
+        <Border x:Name="UpdateCard" Background="#14FFFFFF" CornerRadius="6" Padding="12" Margin="0,8,0,0">
+            <StackPanel Spacing="10">
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="8" RowSpacing="2">
+                    <icons:Icon Value="mdi-download" Foreground="{DynamicResource SystemAccentColorLight2}" IsVisible="{Binding IsOffer}" />
+                    <icons:Icon Value="mdi-check-circle" Foreground="LightGreen" IsVisible="{Binding IsReady}" />
+                    <icons:Icon Value="mdi-alert-circle" Foreground="Orange" IsVisible="{Binding IsFailed}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Title}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding Detail}" Classes="detail" Classes.failed="{Binding IsFailed}" TextWrapping="Wrap" />
+                </Grid>
+
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8" IsVisible="{Binding IsDownloading}">
+                    <ProgressBar Value="{Binding Progress}" Maximum="1" MinWidth="0" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="1" Text="{Binding Progress, StringFormat='{}{0:P0}'}" Classes="detail" MinWidth="32" TextAlignment="Right" />
+                </Grid>
+
+                <Button Content="Update" Command="{Binding UpdateCommand}" Classes="accent" IsVisible="{Binding IsAvailable}" />
+                <Button Content="Try again" Command="{Binding UpdateCommand}" Classes="accent" IsVisible="{Binding IsFailed}" />
+                <Button Content="Restart now" Command="{Binding RestartCommand}" Classes="accent" IsVisible="{Binding IsReady}" />
+
+                <Grid ColumnDefinitions="Auto,*,Auto" Margin="-8,-4" IsVisible="{Binding !IsDownloading}">
+                    <Button Content="Not now" Command="{Binding DismissCommand}" Classes="quiet" />
+                    <Button Grid.Column="2" Content="Skip this version" Command="{Binding SkipCommand}" Classes="quiet" IsVisible="{Binding IsAvailable}" />
+                </Grid>
+            </StackPanel>
+        </Border>
+    </LayoutTransformControl>
+</UserControl>

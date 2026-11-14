@@ -4,7 +4,6 @@ using System.IO;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core.Releases;
-using Torii.Updates;
 using Torii.ViewModels;
 
 namespace Torii.Tests
@@ -62,14 +61,15 @@ namespace Torii.Tests
                 Assert.That(model.IsVisible, Is.True);
                 Assert.That(model.IsAvailable, Is.True);
                 Assert.That(model.Version, Is.EqualTo("0.1.0-alpha.3"));
-                Assert.That(model.Title, Is.EqualTo("Torii 0.1.0-alpha.3 is available"));
+                Assert.That(model.Title, Is.EqualTo("Update available"));
+                Assert.That(model.Detail, Is.EqualTo("Torii 0.1.0-alpha.3"));
                 Assert.That(client.Downloads, Is.Zero);
                 Assert.That(client.AppliedOnExit, Is.Zero);
             }
         }
 
         [Test]
-        public async Task UpdatingDownloadsThenIsReadyAndGetsAppliedWhenToriiCloses()
+        public async Task UpdatingDownloadsThenIsReadyAndNothingIsInstalledYet()
         {
             client.Offer = "0.1.0-alpha.3";
             UpdateViewModel model = create();
@@ -81,11 +81,101 @@ namespace Torii.Tests
             {
                 Assert.That(model.State, Is.EqualTo(UpdateState.Ready));
                 Assert.That(model.IsReady, Is.True);
-                Assert.That(model.Title, Is.EqualTo("Torii 0.1.0-alpha.3 is ready"));
+                Assert.That(model.Title, Is.EqualTo("Update ready"));
+                Assert.That(model.Detail, Is.EqualTo("0.1.0-alpha.3 installs when Torii closes."));
                 Assert.That(model.Progress, Is.EqualTo(1));
                 Assert.That(client.Downloads, Is.EqualTo(1));
+                Assert.That(client.AppliedOnExit, Is.Zero);
+                Assert.That(client.Restarts, Is.Zero);
+            }
+        }
+
+        [Test]
+        public async Task AReadyUpdateIsInstalledWhenToriiCloses()
+        {
+            client.Offer = "0.1.0-alpha.3";
+            UpdateViewModel model = create();
+            await model.CheckAsync();
+            await model.UpdateCommand.ExecuteAsync(null);
+
+            model.ApplyOnExit();
+
+            using (Assert.EnterMultipleScope())
+            {
                 Assert.That(client.AppliedOnExit, Is.EqualTo(1));
                 Assert.That(client.Restarts, Is.Zero);
+            }
+        }
+
+        [Test]
+        public async Task AReadyUpdateIsStillInstalledOnCloseAfterNotNow()
+        {
+            client.Offer = "0.1.0-alpha.3";
+            UpdateViewModel model = create();
+            await model.CheckAsync();
+            await model.UpdateCommand.ExecuteAsync(null);
+            model.DismissCommand.Execute(null);
+
+            model.ApplyOnExit();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.IsVisible, Is.False);
+                Assert.That(client.AppliedOnExit, Is.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public async Task NothingIsInstalledOnCloseUnlessAnUpdateIsReady()
+        {
+            client.Offer = "0.1.0-alpha.3";
+            client.DownloadFails = new InvalidOperationException("The network is gone.");
+            UpdateViewModel model = create();
+
+            model.ApplyOnExit();
+            await model.CheckAsync();
+            model.ApplyOnExit();
+            await model.UpdateCommand.ExecuteAsync(null);
+            model.ApplyOnExit();
+
+            Assert.That(client.AppliedOnExit, Is.Zero);
+        }
+
+        [Test]
+        public async Task FailingToInstallOnCloseIsOnlyLogged()
+        {
+            client.Offer = "0.1.0-alpha.3";
+            client.ApplyOnExitFails = new InvalidOperationException("Update.exe is missing.");
+            UpdateViewModel model = create();
+            await model.CheckAsync();
+            await model.UpdateCommand.ExecuteAsync(null);
+
+            model.ApplyOnExit();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.State, Is.EqualTo(UpdateState.Ready));
+                Assert.That(File.ReadAllText(log.FilePath), Does.Contain("update failed: InvalidOperationException: Update.exe is missing."));
+            }
+        }
+
+        [Test]
+        public async Task HidingTheCardKeepsWhatItShowedAndTurnsItsButtonsOff()
+        {
+            client.Offer = "0.1.0-alpha.3";
+            UpdateViewModel model = create();
+            await model.CheckAsync();
+            await model.UpdateCommand.ExecuteAsync(null);
+
+            model.DismissCommand.Execute(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.IsVisible, Is.False);
+                Assert.That(model.State, Is.EqualTo(UpdateState.Ready));
+                Assert.That(model.Title, Is.EqualTo("Update ready"));
+                Assert.That(model.RestartCommand.CanExecute(null), Is.False);
+                Assert.That(model.DismissCommand.CanExecute(null), Is.False);
             }
         }
 
@@ -103,6 +193,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(model.IsDownloading, Is.True);
+                Assert.That(model.Title, Is.EqualTo("Downloading update"));
                 Assert.That(model.UpdateCommand.CanExecute(null), Is.False);
                 Assert.That(model.SkipCommand.CanExecute(null), Is.False);
                 Assert.That(model.RestartCommand.CanExecute(null), Is.False);
@@ -126,7 +217,7 @@ namespace Torii.Tests
 
             await model.UpdateCommand.ExecuteAsync(null);
             UpdateState afterFailure = model.State;
-            string problem = model.Problem;
+            string problem = model.Detail;
             string title = model.Title;
             bool canTryAgain = model.UpdateCommand.CanExecute(null);
 
@@ -137,7 +228,7 @@ namespace Torii.Tests
             {
                 Assert.That(afterFailure, Is.EqualTo(UpdateState.Failed));
                 Assert.That(problem, Is.EqualTo("The network is gone."));
-                Assert.That(title, Is.EqualTo("Couldn't update to 0.1.0-alpha.3"));
+                Assert.That(title, Is.EqualTo("Update failed"));
                 Assert.That(canTryAgain, Is.True);
                 Assert.That(model.State, Is.EqualTo(UpdateState.Ready));
                 Assert.That(model.Problem, Is.Empty);
@@ -223,12 +314,15 @@ namespace Torii.Tests
             await model.UpdateCommand.ExecuteAsync(null);
             bool whenReady = model.RestartCommand.CanExecute(null);
 
+            int told = 0;
+            model.RestartCommand.CanExecuteChanged += (_, _) => told++;
+
             busy = true;
-            model.Refresh();
+            model.BusyChanged();
             bool whileBusy = model.RestartCommand.CanExecute(null);
 
             busy = false;
-            model.Refresh();
+            model.BusyChanged();
 
             using (Assert.EnterMultipleScope())
             {
@@ -236,6 +330,7 @@ namespace Torii.Tests
                 Assert.That(whenReady, Is.True);
                 Assert.That(whileBusy, Is.False);
                 Assert.That(model.RestartCommand.CanExecute(null), Is.True);
+                Assert.That(told, Is.EqualTo(2));
             }
         }
 
@@ -311,6 +406,7 @@ namespace Torii.Tests
 
             await model.CheckAsync();
             await model.UpdateCommand.ExecuteAsync(null);
+            model.ApplyOnExit();
 
             string text = File.ReadAllText(log.FilePath);
 
@@ -318,57 +414,11 @@ namespace Torii.Tests
             {
                 Assert.That(text, Does.Contain("0.1.0-alpha.3 is available"));
                 Assert.That(text, Does.Contain("downloading 0.1.0-alpha.3"));
-                Assert.That(text, Does.Contain("0.1.0-alpha.3 is downloaded and gets applied when Torii closes"));
+                Assert.That(text, Does.Contain("0.1.0-alpha.3 is downloaded"));
+                Assert.That(text, Does.Contain("installing 0.1.0-alpha.3 as Torii closes"));
             }
         }
 
         private UpdateViewModel create(string? skipped = null) => new UpdateViewModel(client, skipped, remembered.Add, log, () => busy);
-
-        private sealed class FakeUpdateClient : IUpdateClient
-        {
-            public string? Offer { get; set; }
-
-            public Exception? CheckFails { get; set; }
-
-            public Exception? DownloadFails { get; set; }
-
-            public Exception? RestartFails { get; set; }
-
-            public double[] Reports { get; set; } = [];
-
-            public TaskCompletionSource? Hold { get; set; }
-
-            public int Downloads { get; private set; }
-
-            public int AppliedOnExit { get; private set; }
-
-            public int Restarts { get; private set; }
-
-            public Task<string?> CheckAsync() => CheckFails != null ? Task.FromException<string?>(CheckFails) : Task.FromResult(Offer);
-
-            public async Task DownloadAsync(IProgress<double> progress)
-            {
-                Downloads++;
-
-                foreach (double report in Reports)
-                    progress.Report(report);
-
-                if (Hold != null)
-                    await Hold.Task;
-
-                if (DownloadFails != null)
-                    throw DownloadFails;
-            }
-
-            public void ApplyOnExit() => AppliedOnExit++;
-
-            public void ApplyAndRestart()
-            {
-                if (RestartFails != null)
-                    throw RestartFails;
-
-                Restarts++;
-            }
-        }
     }
 }

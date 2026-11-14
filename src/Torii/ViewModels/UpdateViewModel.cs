@@ -29,21 +29,26 @@ namespace Torii.ViewModels
         }
 
         [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(IsVisible), nameof(IsAvailable), nameof(IsDownloading), nameof(IsReady), nameof(IsFailed), nameof(Title))]
+        [NotifyCanExecuteChangedFor(nameof(UpdateCommand), nameof(SkipCommand), nameof(DismissCommand), nameof(RestartCommand))]
+        public partial bool IsVisible { get; private set; }
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsOffer), nameof(IsAvailable), nameof(IsDownloading), nameof(IsReady), nameof(IsFailed), nameof(Title), nameof(Detail))]
         [NotifyCanExecuteChangedFor(nameof(UpdateCommand), nameof(SkipCommand), nameof(DismissCommand), nameof(RestartCommand))]
         public partial UpdateState State { get; private set; }
 
         [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(Title))]
+        [NotifyPropertyChangedFor(nameof(Detail))]
         public partial string Version { get; private set; }
 
         [ObservableProperty]
         public partial double Progress { get; private set; }
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(Detail))]
         public partial string Problem { get; private set; }
 
-        public bool IsVisible => State != UpdateState.None;
+        public bool IsOffer => State is UpdateState.Available or UpdateState.Downloading;
 
         public bool IsAvailable => State == UpdateState.Available;
 
@@ -55,9 +60,17 @@ namespace Torii.ViewModels
 
         public string Title => State switch
         {
-            UpdateState.Ready => $"Torii {Version} is ready",
-            UpdateState.Failed => $"Couldn't update to {Version}",
-            _ => $"Torii {Version} is available",
+            UpdateState.Downloading => "Downloading update",
+            UpdateState.Ready => "Update ready",
+            UpdateState.Failed => "Update failed",
+            _ => "Update available",
+        };
+
+        public string Detail => State switch
+        {
+            UpdateState.Ready => $"{Version} installs when Torii closes.",
+            UpdateState.Failed => Problem,
+            _ => $"Torii {Version}",
         };
 
         public async Task CheckAsync()
@@ -71,20 +84,21 @@ namespace Torii.ViewModels
 
                 if (version == null)
                 {
-                    State = UpdateState.None;
+                    IsVisible = false;
                     return;
                 }
 
                 if (string.Equals(version, skipped, StringComparison.Ordinal))
                 {
                     log?.Write($"{version} is available and skipped");
-                    State = UpdateState.None;
+                    IsVisible = false;
                     return;
                 }
 
                 Version = version;
                 Problem = string.Empty;
                 State = UpdateState.Available;
+                IsVisible = true;
                 log?.Write($"{version} is available");
             }
             catch (Exception e)
@@ -93,7 +107,23 @@ namespace Torii.ViewModels
             }
         }
 
-        public void Refresh() => RestartCommand.NotifyCanExecuteChanged();
+        public void BusyChanged() => RestartCommand.NotifyCanExecuteChanged();
+
+        public void ApplyOnExit()
+        {
+            if (State != UpdateState.Ready)
+                return;
+
+            try
+            {
+                log?.Write($"installing {Version} as Torii closes");
+                client.ApplyOnExit();
+            }
+            catch (Exception e)
+            {
+                log?.Write($"update failed: {e.GetType().Name}: {e.Message}");
+            }
+        }
 
         [RelayCommand(CanExecute = nameof(canChoose))]
         public async Task UpdateAsync()
@@ -112,10 +142,9 @@ namespace Torii.ViewModels
                         Progress = value;
                 }));
 
-                client.ApplyOnExit();
                 Progress = 1;
                 State = UpdateState.Ready;
-                log?.Write($"{Version} is downloaded and gets applied when Torii closes");
+                log?.Write($"{Version} is downloaded");
             }
             catch (Exception e)
             {
@@ -129,11 +158,11 @@ namespace Torii.ViewModels
             skipped = Version;
             remember?.Invoke(Version);
             log?.Write($"skipping {Version}");
-            State = UpdateState.None;
+            IsVisible = false;
         }
 
         [RelayCommand(CanExecute = nameof(canDismiss))]
-        public void Dismiss() => State = UpdateState.None;
+        public void Dismiss() => IsVisible = false;
 
         [RelayCommand(CanExecute = nameof(canRestart))]
         public void Restart()
@@ -149,11 +178,11 @@ namespace Torii.ViewModels
             }
         }
 
-        private bool canChoose() => State is UpdateState.Available or UpdateState.Failed;
+        private bool canChoose() => IsVisible && State is UpdateState.Available or UpdateState.Failed;
 
-        private bool canDismiss() => State is UpdateState.Available or UpdateState.Failed or UpdateState.Ready;
+        private bool canDismiss() => IsVisible && State is UpdateState.Available or UpdateState.Failed or UpdateState.Ready;
 
-        private bool canRestart() => State == UpdateState.Ready && !busy();
+        private bool canRestart() => IsVisible && State == UpdateState.Ready && !busy();
 
         private void fail(Exception e)
         {

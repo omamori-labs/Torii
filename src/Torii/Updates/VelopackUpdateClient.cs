@@ -9,22 +9,35 @@ namespace Torii.Updates
 {
     internal sealed class VelopackUpdateClient : IUpdateClient
     {
-        public const string REPOSITORY = "https://github.com/omamori-labs/Torii";
+        private const string repository = "https://github.com/omamori-labs/Torii";
+
+        private readonly UpdateLog log;
 
         private UpdateManager? manager;
         private UpdateInfo? update;
 
+        public VelopackUpdateClient(UpdateLog log)
+        {
+            this.log = log;
+        }
+
         public async Task<string?> CheckAsync()
         {
             string version = typeof(VelopackUpdateClient).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion ?? string.Empty;
+            bool prerelease = ReleaseChannel.IsPrerelease(version);
 
-            manager ??= new UpdateManager(new GithubSource(REPOSITORY, null, ReleaseChannel.IsPrerelease(version)));
+            manager ??= new UpdateManager(new GithubSource(repository, null, prerelease));
 
             // Not installed when run from the IDE
             if (!manager.IsInstalled)
                 return null;
 
+            log.Write($"Torii {version} is checking for updates, {(prerelease ? "prereleases included" : "releases only")}");
+
             update = await manager.CheckForUpdatesAsync().ConfigureAwait(false);
+
+            if (update == null)
+                log.Write("no newer version");
 
             return update?.TargetFullRelease.Version.ToString();
         }
@@ -36,6 +49,7 @@ namespace Torii.Updates
             return current.DownloadUpdatesAsync(offer, percent => progress.Report(percent / 100.0));
         }
 
+        // Velopack's updater only waits 60 seconds for the exit
         public void ApplyOnExit()
         {
             var (current, offer) = pending();
