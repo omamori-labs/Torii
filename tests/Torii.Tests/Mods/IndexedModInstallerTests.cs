@@ -158,7 +158,7 @@ namespace Torii.Tests
 
         private static IndexedMod mod(string id) => new IndexedMod(id, "Cool Mod", "someone", string.Empty, null, []);
 
-        private static IndexedModVersion version(string number, string hash) => new IndexedModVersion(number, "0.2", download, hash, 0);
+        private static IndexedModVersion version(string number, string hash) => new IndexedModVersion(number, "0.2", download, hash, 0, []);
 
         private static (string Name, byte[] Content)[] modEntries(string id, string version) =>
         [

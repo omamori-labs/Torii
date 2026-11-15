@@ -74,6 +74,20 @@ namespace Torii.Tests
         }
 
         [Test]
+        public void DependenciesAreReadLikeInAManifest()
+        {
+            IReadOnlyList<ModDependency> dependencies = ModIndexFeed.Parse(sample)[0].Latest.Dependencies;
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(dependencies, Has.Count.EqualTo(2));
+                Assert.That(dependencies[0], Is.EqualTo(new ModDependency("other.skinswitch", "0.2.0", false)));
+                Assert.That(dependencies[1], Is.EqualTo(new ModDependency("optional.extra", string.Empty, true)));
+                Assert.That(ModIndexFeed.Parse(sample)[1].Latest.Dependencies, Is.Empty);
+            }
+        }
+
+        [Test]
         public void RepositoryIsKept()
         {
             Assert.That(ModIndexFeed.Parse(sample)[0].Repository, Is.EqualTo(new Uri("https://github.com/someone/hitcounter")));

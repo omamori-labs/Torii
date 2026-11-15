@@ -102,7 +102,7 @@ namespace Torii.Core.Mods
 
             long size = item.TryGetProperty("size", out JsonElement bytes) && bytes.TryGetInt64(out long value) ? value : 0;
 
-            return (parsed, new IndexedModVersion(version, api, download, hash.ToLowerInvariant(), size));
+            return (parsed, new IndexedModVersion(version, api, download, hash.ToLowerInvariant(), size, ModManifestReader.Dependencies(item)));
         }
 
         private static string? text(JsonElement element, string property)
