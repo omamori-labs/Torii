@@ -1,13 +1,16 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using Torii.Core;
 using Torii.Core.Instances;
 using Torii.Core.Lazer;
 using Torii.Core.Library;
 using Torii.Core.Mods;
+using Torii.Core.Omamori;
 using Torii.Core.Releases;
 using Torii.ViewModels;
 
@@ -46,6 +49,36 @@ namespace Torii.Tests
                 File.WriteAllText(file, string.Empty);
 
             File.WriteAllText(Path.Combine(instance.Directory, "sq.version"), $"<package><metadata><version>{lazer}</version></metadata></package>");
+        }
+
+        public static string PlaceOmamori(LazerInstance instance)
+        {
+            // Any stamped assembly will do
+            Assembly stamped = typeof(OmamoriInstall).Assembly;
+
+            Directory.CreateDirectory(instance.Omamori.CoreDirectory);
+            Directory.CreateDirectory(Path.GetDirectoryName(instance.Omamori.RulesetAssembly)!);
+            File.WriteAllText(instance.Omamori.RulesetAssembly, "bootstrap");
+            File.Copy(stamped.Location, instance.Omamori.CoreAssembly);
+
+            return stamped.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
+        }
+
+        public void ServeReleases(params string[] versions)
+        {
+            byte[] zip = Fixtures.OmamoriZip(lazer);
+
+            IEnumerable<string> entries = versions.Select(version =>
+            {
+                var download = new Uri($"https://example.com/omamori-{version}.zip");
+                handler.Add(download, zip);
+
+                return $$"""
+                    { "tag_name": "v{{version}}", "assets": [{ "name": "omamori-{{version}}.zip", "size": {{zip.Length}}, "digest": "sha256:{{Fixtures.Sha256(zip)}}", "browser_download_url": "{{download}}" }] }
+                    """;
+            });
+
+            handler.Add(ReleaseFeed.GitHub, Encoding.UTF8.GetBytes($"[{string.Join(',', entries)}]"));
         }
 
         public static void AddMod(LazerInstance instance, string id)

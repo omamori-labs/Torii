@@ -1,4 +1,5 @@
 using System;
+using System.Net;
 using System.Net.Http;
 using Avalonia;
 using Avalonia.Controls;
@@ -19,7 +20,7 @@ namespace Torii
 {
     public partial class App : Application
     {
-        private static readonly HttpClient http = new HttpClient();
+        private static readonly HttpClient http = new HttpClient(new SocketsHttpHandler { AutomaticDecompression = DecompressionMethods.All });
 
         public override void Initialize() => AvaloniaXamlLoader.Load(this);
 

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -56,6 +57,47 @@ namespace Torii.Tests
                 Assert.That(texts, Does.Contain("2 mods"));
                 Assert.That(texts, Does.Contain("0 mods"));
             }
+        }
+
+        [AvaloniaTest]
+        public async Task CardOfAnInstanceWithANewerOmamoriReleaseSaysUpdate()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            LazerInstance beta = fixture.Store.Create("beta");
+            string installed = UiFixture.PlaceOmamori(alpha);
+            UiFixture.PlaceOmamori(beta);
+            fixture.ServeReleases("99.0.0", installed);
+            MainWindow window = show();
+            var shell = (MainViewModel)window.DataContext!;
+
+            foreach (InstanceViewModel instance in shell.Instances)
+                await instance.LoadReleasesCommand.ExecuteAsync(null);
+
+            layout(window);
+
+            ListBox list = window.GetVisualDescendants().OfType<ListBox>().First(l => l.Name == "InstanceList");
+            TextBlock[] updates = [.. list.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Text == "Update" && t.IsEffectivelyVisible)];
+
+            Assert.That(updates, Has.Length.EqualTo(2));
+
+            foreach (TextBlock update in updates)
+                Assert.That(boundsIn(window, list).Contains(boundsIn(window, update)), Is.True, "the Update label sticks out of the sidebar");
+        }
+
+        [AvaloniaTest]
+        public async Task CardOfAnInstanceOnTheNewestOmamoriSaysNothing()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            string installed = UiFixture.PlaceOmamori(alpha);
+            fixture.ServeReleases(installed);
+            MainWindow window = show();
+
+            await selected(window).LoadReleasesCommand.ExecuteAsync(null);
+            layout(window);
+
+            ListBox list = window.GetVisualDescendants().OfType<ListBox>().First(l => l.Name == "InstanceList");
+
+            Assert.That(list.GetVisualDescendants().OfType<TextBlock>().Any(t => t.Text == "Update" && t.IsEffectivelyVisible), Is.False);
         }
 
         [AvaloniaTest]

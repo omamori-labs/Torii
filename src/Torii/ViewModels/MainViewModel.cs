@@ -237,6 +237,8 @@ namespace Torii.ViewModels
                     Update.BusyChanged();
             };
 
+            _ = model.EnsureReleasesAsync();
+
             return model;
         }
 

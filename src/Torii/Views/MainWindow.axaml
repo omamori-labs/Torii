@@ -59,6 +59,10 @@
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <TextBlock Text="{Binding ModsLabel}" Opacity="0.6" />
                                     <TextBlock Text="Running" IsVisible="{Binding OsuRunning}" Foreground="Orange" />
+                                    <TextBlock Text="Update"
+                                               IsVisible="{Binding HasOmamoriUpdate}"
+                                               ToolTip.Tip="{Binding OmamoriUpdateTip}"
+                                               Foreground="{DynamicResource SystemControlHighlightAccentBrush}" />
                                 </StackPanel>
                             </StackPanel>
                         </Border>

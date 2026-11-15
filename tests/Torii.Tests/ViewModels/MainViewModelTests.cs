@@ -47,6 +47,7 @@ namespace Torii.Tests
         private InstanceStore store = null!;
         private RouteHandler handler = null!;
         private HttpClient http = null!;
+        private ReleaseFeed releases = null!;
         private SharedLibrary library = null!;
         private bool storeSeesGameRunning;
         private bool gameRunning;
@@ -64,6 +65,7 @@ namespace Torii.Tests
             store = new InstanceStore(Path.Combine(directory, "instances"), Path.Combine(directory, "old-instance"), _ => storeSeesGameRunning);
             handler = new RouteHandler();
             http = new HttpClient(handler);
+            releases = new ReleaseFeed(http);
             library = new SharedLibrary(Path.Combine(directory, "library"), (_, _) => true, () => false, _ => null);
         }
 
@@ -696,20 +698,31 @@ namespace Torii.Tests
         }
 
         [Test]
-        public void SelectingAnInstanceLoadsItsReleasesOnce()
+        public void ReleasesAreFetchedOnceForAllInstances()
         {
+            handler.Add(ReleaseFeed.GitHub, "[]"u8.ToArray());
             store.Create("alpha");
             store.Create("beta");
             MainViewModel model = create();
             Assert.That(() => handler.Requested.Count, Is.EqualTo(1).After(2000, 10));
 
             model.Selected = model.Instances[1];
-            Assert.That(() => handler.Requested.Count, Is.EqualTo(2).After(2000, 10));
-
             model.Selected = model.Instances[0];
             model.Selected = model.Instances[1];
 
-            Assert.That(handler.Requested, Has.Count.EqualTo(2));
+            Assert.That(handler.Requested, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void EveryInstanceLoadsItsReleasesWithoutBeingSelected()
+        {
+            store.Create("alpha");
+            store.Create("beta");
+            store.Create("gamma");
+
+            MainViewModel model = create();
+
+            Assert.That(() => model.Instances.All(i => i.ReleasesReady), Is.True.After(2000, 10));
         }
 
         [Test]
@@ -795,7 +808,7 @@ namespace Torii.Tests
 
         private InstanceViewModel makeInstance(LazerInstance instance) => new InstanceViewModel(
             instance,
-            new ReleaseFeed(http),
+            releases,
             new InstanceSetup(http, directory, _ => false),
             library,
             new LibrarySeed(() => false, () => null, () => null),

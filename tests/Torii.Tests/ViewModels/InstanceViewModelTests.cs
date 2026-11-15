@@ -5,12 +5,14 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core;
 using Torii.Core.Lazer;
 using Torii.Core.Library;
+using Torii.Core.Omamori;
 using Torii.Core.Releases;
 using Torii.ViewModels;
 
@@ -128,6 +130,46 @@ namespace Torii.Tests
                 Assert.That(model.Status, Does.StartWith("Couldn't check for releases."));
                 Assert.That(model.InstallCommand.CanExecute(null), Is.False);
             }
+        }
+
+        [Test]
+        public async Task InstanceWithANewerOmamoriReleaseSaysSo()
+        {
+            string installed = placeOmamori();
+            serveReleases("99.0.0", installed);
+            InstanceViewModel model = create();
+
+            await model.LoadReleasesCommand.ExecuteAsync(null);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(model.OmamoriUpdate, Is.EqualTo("99.0.0"));
+                Assert.That(model.HasOmamoriUpdate, Is.True);
+                Assert.That(model.OmamoriUpdateTip, Is.EqualTo("Omamori 99.0.0 is available"));
+            }
+        }
+
+        [Test]
+        public async Task InstanceOnTheNewestOmamoriSaysNothing()
+        {
+            string installed = placeOmamori();
+            serveReleases(installed, "0.0.1");
+            InstanceViewModel model = create();
+
+            await model.LoadReleasesCommand.ExecuteAsync(null);
+
+            Assert.That(model.HasOmamoriUpdate, Is.False);
+        }
+
+        [Test]
+        public async Task InstanceWithoutOmamoriSaysNothing()
+        {
+            serveReleases("99.0.0");
+            InstanceViewModel model = create();
+
+            await model.LoadReleasesCommand.ExecuteAsync(null);
+
+            Assert.That(model.HasOmamoriUpdate, Is.False);
         }
 
         [Test]
@@ -749,6 +791,19 @@ namespace Torii.Tests
             }, () => false, _ => otherRunningIn);
 
             return current = new InstanceViewModel(instance, new ReleaseFeed(http), new InstanceSetup(http, directory, _ => osuRunning), library, new LibrarySeed(() => realOsuRunning, () => realOsuData, () => lazer), () => osuRunning, launcher) { ShowProblem = showProblem };
+        }
+
+        private string placeOmamori()
+        {
+            // Any stamped assembly will do
+            Assembly stamped = typeof(OmamoriInstall).Assembly;
+
+            Directory.CreateDirectory(instance.Omamori.CoreDirectory);
+            Directory.CreateDirectory(Path.GetDirectoryName(instance.Omamori.RulesetAssembly)!);
+            File.WriteAllText(instance.Omamori.RulesetAssembly, "bootstrap");
+            File.Copy(stamped.Location, instance.Omamori.CoreAssembly);
+
+            return stamped.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion.Split('+')[0];
         }
 
         private void serveReleases(params string[] versions)

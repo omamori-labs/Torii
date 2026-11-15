@@ -13,18 +13,55 @@ namespace Torii.Core.Releases
     {
         private const string sha256_prefix = "sha256:";
 
+        private const long cache_milliseconds = 10 * 60 * 1000;
+
         private readonly HttpClient http;
         private readonly Uri source;
+        private readonly Func<long> ticks;
+        private readonly Lock gate = new Lock();
 
-        public ReleaseFeed(HttpClient http, Uri? source = null)
+        private Task<IReadOnlyList<OmamoriRelease>>? cached;
+        private long cachedAt;
+
+        public ReleaseFeed(HttpClient http, Uri? source = null, Func<long>? ticks = null)
         {
             this.http = http;
             this.source = source ?? GitHub;
+            this.ticks = ticks ?? (() => Environment.TickCount64);
         }
 
         public static Uri GitHub { get; } = new Uri("https://api.github.com/repos/omamori-labs/Omamori/releases?per_page=30");
 
         public async Task<IReadOnlyList<OmamoriRelease>> ListAsync(CancellationToken cancellation = default)
+        {
+            Task<IReadOnlyList<OmamoriRelease>> pending;
+
+            lock (gate)
+            {
+                if (cached == null || ticks() - cachedAt > cache_milliseconds)
+                {
+                    Task<IReadOnlyList<OmamoriRelease>> fetch = fetchAsync();
+                    cached = fetch;
+                    cachedAt = ticks();
+                    pending = fetch;
+
+                    _ = fetch.ContinueWith(failed =>
+                    {
+                        lock (gate)
+                        {
+                            if (ReferenceEquals(cached, failed))
+                                cached = null;
+                        }
+                    }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+                }
+                else
+                    pending = cached;
+            }
+
+            return await pending.WaitAsync(cancellation).ConfigureAwait(false);
+        }
+
+        private async Task<IReadOnlyList<OmamoriRelease>> fetchAsync()
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, source);
 
@@ -32,10 +69,10 @@ namespace Torii.Core.Releases
             request.Headers.UserAgent.ParseAdd("Torii");
             request.Headers.Accept.ParseAdd("application/vnd.github+json");
 
-            using HttpResponseMessage response = await http.SendAsync(request, cancellation).ConfigureAwait(false);
+            using HttpResponseMessage response = await http.SendAsync(request).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
 
-            return Parse(await response.Content.ReadAsStringAsync(cancellation).ConfigureAwait(false));
+            return Parse(await response.Content.ReadAsStringAsync().ConfigureAwait(false));
         }
 
         public static IReadOnlyList<OmamoriRelease> Parse(string json)

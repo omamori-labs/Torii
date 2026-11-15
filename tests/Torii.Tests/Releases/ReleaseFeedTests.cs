@@ -103,6 +103,71 @@ namespace Torii.Tests
         }
 
         [Test]
+        public async Task ReleasesAreAskedForOnceWithinTenMinutes()
+        {
+            long now = 0;
+            using RouteHandler handler = new RouteHandler().Add(ReleaseFeed.GitHub, Encoding.UTF8.GetBytes(sample));
+            using var http = new HttpClient(handler);
+            var feed = new ReleaseFeed(http, ticks: () => now);
+
+            await feed.ListAsync();
+            now = 9 * 60 * 1000;
+            IReadOnlyList<OmamoriRelease> again = await feed.ListAsync();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(handler.Requested, Has.Count.EqualTo(1));
+                Assert.That(again, Has.Count.EqualTo(3));
+            }
+        }
+
+        [Test]
+        public async Task ReleasesAreAskedForAgainAfterTenMinutes()
+        {
+            long now = 0;
+            using RouteHandler handler = new RouteHandler().Add(ReleaseFeed.GitHub, Encoding.UTF8.GetBytes(sample));
+            using var http = new HttpClient(handler);
+            var feed = new ReleaseFeed(http, ticks: () => now);
+
+            await feed.ListAsync();
+            now = 11 * 60 * 1000;
+            await feed.ListAsync();
+
+            Assert.That(handler.Requested, Has.Count.EqualTo(2));
+        }
+
+        [Test]
+        public async Task CallsMadeTogetherShareOneRequest()
+        {
+            using RouteHandler handler = new RouteHandler().Add(ReleaseFeed.GitHub, Encoding.UTF8.GetBytes(sample));
+            using var http = new HttpClient(handler);
+            var feed = new ReleaseFeed(http);
+
+            await Task.WhenAll(feed.ListAsync(), feed.ListAsync(), feed.ListAsync());
+
+            Assert.That(handler.Requested, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public async Task FailedRequestIsAskedForAgainNextTime()
+        {
+            using var handler = new RouteHandler();
+            using var http = new HttpClient(handler);
+            var feed = new ReleaseFeed(http);
+
+            Assert.That(async () => await feed.ListAsync(), Throws.InstanceOf<HttpRequestException>());
+
+            handler.Add(ReleaseFeed.GitHub, Encoding.UTF8.GetBytes(sample));
+            IReadOnlyList<OmamoriRelease> releases = await feed.ListAsync();
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(releases, Has.Count.EqualTo(3));
+                Assert.That(handler.Requested, Has.Count.EqualTo(2));
+            }
+        }
+
+        [Test]
         public void FailedRequestIsNotAnEmptyList()
         {
             using var handler = new StubHandler(HttpStatusCode.Forbidden, Encoding.UTF8.GetBytes("{ \"message\": \"API rate limit exceeded\" }"));

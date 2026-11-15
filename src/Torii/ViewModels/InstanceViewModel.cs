@@ -69,6 +69,7 @@ namespace Torii.ViewModels
             ModList.Mods.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ModsLabel));
 
             Summary = string.Empty;
+            OmamoriUpdate = string.Empty;
 
             refreshInstance();
             OsuRunning = this.osuRunning();
@@ -111,6 +112,14 @@ namespace Torii.ViewModels
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(InstallLabel))]
         public partial string Summary { get; private set; }
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasOmamoriUpdate), nameof(OmamoriUpdateTip))]
+        public partial string OmamoriUpdate { get; private set; }
+
+        public bool HasOmamoriUpdate => OmamoriUpdate.Length > 0;
+
+        public string OmamoriUpdateTip => $"Omamori {OmamoriUpdate} is available";
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(InstallLabel))]
@@ -321,6 +330,7 @@ namespace Torii.ViewModels
 
                 SelectedRelease = Releases.FirstOrDefault();
                 Status = Releases.Count == 0 ? "No releases found." : null;
+                refreshOmamoriUpdate();
             }
             catch (Exception e) when (e is HttpRequestException or JsonException or TaskCanceledException)
             {
@@ -467,6 +477,10 @@ namespace Torii.ViewModels
             };
 
             refreshImport();
+            refreshOmamoriUpdate();
         }
+
+        private void refreshOmamoriUpdate() =>
+            OmamoriUpdate = installedVersion == null ? string.Empty : ReleaseChannel.NewerThan(Releases, installedVersion) ?? string.Empty;
     }
 }
