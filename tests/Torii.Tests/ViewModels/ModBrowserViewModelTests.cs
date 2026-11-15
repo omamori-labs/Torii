@@ -267,6 +267,64 @@ namespace Torii.Tests
         }
 
         [Test]
+        public async Task AvailableUpdatesNameTheNewVersion()
+        {
+            serve(entry("a.old", "Old", "2.0.0"), entry("a.current", "Current", "1.0.0"));
+            library.InstallFromZip(writeZip("a.old", "1.0.0"));
+            library.InstallFromZip(writeZip("a.current", "1.0.0"));
+
+            await browser.EnsureLoadedAsync();
+
+            Assert.That(browser.AvailableUpdates, Is.EqualTo(new Dictionary<string, string> { ["a.old"] = "2.0.0" }));
+        }
+
+        [Test]
+        public async Task RefreshedIsRaisedWhenTheIndexLoadsAndAfterAnInstall()
+        {
+            serveZip("a.mod", "Mod", "1.0.0");
+            int raised = 0;
+            browser.Refreshed += (_, _) => raised++;
+
+            await browser.EnsureLoadedAsync();
+            Assert.That(raised, Is.EqualTo(1));
+
+            await row("a.mod").InstallCommand.ExecuteAsync(null);
+            Assert.That(raised, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task UpdatingInstallsTheNewerVersionAndClearsTheUpdate()
+        {
+            serveZip("a.mod", "Mod", "2.0.0");
+            library.InstallFromZip(writeZip("a.mod", "1.0.0"));
+            await browser.EnsureLoadedAsync();
+
+            await browser.UpdateAsync("a.mod");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(library.List().Single().Manifest!.Version, Is.EqualTo("2.0.0"));
+                Assert.That(browser.AvailableUpdates, Is.Empty);
+            }
+        }
+
+        [Test]
+        public async Task UpdatingAModWithNoUpdateDoesNothing()
+        {
+            serveZip("a.mod", "Mod", "1.0.0");
+            library.InstallFromZip(writeZip("a.mod", "1.0.0"));
+            await browser.EnsureLoadedAsync();
+
+            await browser.UpdateAsync("a.mod");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(busy, Is.Empty);
+                Assert.That(handler.Requested, Has.None.EqualTo(new Uri("https://example.com/a.mod-1.0.0.zip")));
+            }
+        }
+
+        [Test]
         public async Task InstallingIsOffWhileTheInstanceIsBusy()
         {
             serve(entry("a.mod", "Mod", "1.0.0"));

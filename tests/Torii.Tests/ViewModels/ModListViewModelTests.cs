@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Torii.Core.Lazer;
 using Torii.Core.Mods;
@@ -570,6 +571,64 @@ namespace Torii.Tests
                 Assert.That(list.Mods[0].Problem, Is.Empty);
                 Assert.That(status, Is.Null);
             }
+        }
+
+        [Test]
+        public void ModWithAnUpdateShowsTheNewVersion()
+        {
+            mod("a.one", "One");
+            mod("a.two", "Two");
+            ModListViewModel list = create();
+
+            list.SetUpdates(new Dictionary<string, string> { ["a.one"] = "2.0.0" });
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(list.Mods[0].HasUpdate, Is.True);
+                Assert.That(list.Mods[0].UpdateLabel, Is.EqualTo("Update to 2.0.0"));
+                Assert.That(list.Mods[1].HasUpdate, Is.False);
+            }
+        }
+
+        [Test]
+        public void UpdatesSurviveARefresh()
+        {
+            mod("a.one", "One");
+            ModListViewModel list = create();
+            list.SetUpdates(new Dictionary<string, string> { ["a.one"] = "2.0.0" });
+
+            list.Refresh();
+
+            Assert.That(list.Mods[0].HasUpdate, Is.True);
+        }
+
+        [Test]
+        public void ClearingTheUpdatesRemovesThem()
+        {
+            mod("a.one", "One");
+            ModListViewModel list = create();
+            list.SetUpdates(new Dictionary<string, string> { ["a.one"] = "2.0.0" });
+
+            list.SetUpdates(new Dictionary<string, string>());
+
+            Assert.That(list.Mods[0].HasUpdate, Is.False);
+        }
+
+        [Test]
+        public async Task UpdatingAsksForTheModsId()
+        {
+            mod("a.one", "One");
+            ModListViewModel list = create();
+            string? requested = null;
+            list.RequestUpdate = id =>
+            {
+                requested = id;
+                return Task.CompletedTask;
+            };
+
+            await list.Mods[0].UpdateCommand.ExecuteAsync(null);
+
+            Assert.That(requested, Is.EqualTo("a.one"));
         }
 
         private string modZip(string id, string name)

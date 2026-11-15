@@ -97,7 +97,7 @@ namespace Torii.Tests
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(scroller(window, "ModScroller").IsEffectivelyVisible, Is.True);
-                Assert.That(scroller(window, "BrowserScroller").IsEffectivelyVisible, Is.False);
+                Assert.That(window.GetVisualDescendants().OfType<DockPanel>().First(p => p.Name == "BrowserArea").IsEffectivelyVisible, Is.False);
                 Assert.That(browseButton(window, "Browse mods"), Is.Not.Null);
             }
         }
@@ -128,6 +128,84 @@ namespace Torii.Tests
                 Assert.That(browser.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && (string?)b.Content == "Install"), Is.False);
                 Assert.That(browser.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text), Does.Contain("Installed"));
                 Assert.That(instance.IsBusy, Is.False);
+            }
+        }
+
+        [AvaloniaTest]
+        public async Task InstalledModWithANewerVersionOffersAnUpdate()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            UiFixture.PlaceGame(alpha);
+            UiFixture.AddMod(alpha, "ui.one");
+            fixture.ServeMod("ui.one", "First", version: "2.0.0");
+            MainWindow window = show();
+            InstanceViewModel instance = selected(window);
+
+            await instance.EnsureModIndexAsync();
+            layout(window);
+
+            ScrollViewer installed = scroller(window, "ModScroller");
+            Button update = installed.GetVisualDescendants().OfType<Button>().Single(b => b.IsEffectivelyVisible && (string?)b.Content == "Update to 2.0.0");
+
+            Assert.That(boundsIn(window, installed).Contains(boundsIn(window, update)), Is.True, "the Update button sticks out of the list");
+            Assert.That(update.Command, Is.SameAs(instance.ModList.Mods.Single().UpdateCommand));
+
+            await instance.ModList.Mods.Single().UpdateCommand.ExecuteAsync(null);
+            layout(window);
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(instance.ModList.Mods.Single().Version, Is.EqualTo("2.0.0"));
+                Assert.That(installed.GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && ((string?)b.Content)?.StartsWith("Update", StringComparison.Ordinal) == true), Is.False);
+            }
+        }
+
+        [AvaloniaTest]
+        public async Task ModThatIsUpToDateOffersNoUpdate()
+        {
+            LazerInstance alpha = fixture.Store.Create("alpha");
+            UiFixture.PlaceGame(alpha);
+            UiFixture.AddMod(alpha, "ui.one");
+            fixture.ServeMod("ui.one", "First");
+            MainWindow window = show();
+
+            await selected(window).EnsureModIndexAsync();
+            layout(window);
+
+            Assert.That(scroller(window, "ModScroller").GetVisualDescendants().OfType<Button>().Any(b => b.IsEffectivelyVisible && ((string?)b.Content)?.StartsWith("Update", StringComparison.Ordinal) == true), Is.False);
+        }
+
+        [AvaloniaTest]
+        public async Task OnlyTheModsOnScreenAreBuilt()
+        {
+            UiFixture.PlaceGame(fixture.Store.Create("alpha"));
+
+            for (int i = 0; i < 300; i++)
+                fixture.ServeMod($"ui.mod{i:000}", $"Mod {i:000}");
+
+            MainWindow window = show();
+            await selected(window).BrowseCommand.ExecuteAsync(null);
+            layout(window);
+
+            ScrollViewer browser = scroller(window, "BrowserScroller");
+            int built = browser.GetVisualDescendants().OfType<Button>().Count(b => b.Content as string == "Install");
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(selected(window).Browser!.Visible, Has.Count.EqualTo(300));
+                Assert.That(built, Is.GreaterThan(0).And.LessThan(60));
+            }
+
+            browser.ScrollToEnd();
+            layout(window);
+            layout(window);
+
+            string?[] names = [.. browser.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text)];
+
+            using (Assert.EnterMultipleScope())
+            {
+                Assert.That(names, Does.Contain("Mod 299"));
+                Assert.That(names, Does.Not.Contain("Mod 000"));
             }
         }
 

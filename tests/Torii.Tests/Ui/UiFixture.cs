@@ -59,17 +59,17 @@ namespace Torii.Tests
                 """);
         }
 
-        public void ServeMod(string id, string name, string description = "")
+        public void ServeMod(string id, string name, string description = "", string version = "1.0.0")
         {
             byte[] zip = Fixtures.Zip(
                 ($"{id}/Mod.dll", []),
                 ($"{id}/mod.json", Encoding.UTF8.GetBytes($$"""
-                    { "id": "{{id}}", "name": "{{name}}", "version": "1.0.0", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": ["Cosmetic"] }
+                    { "id": "{{id}}", "name": "{{name}}", "version": "{{version}}", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": ["Cosmetic"] }
                     """)));
 
             handler.Add(new Uri($"https://example.com/{id}.zip"), zip);
             listed.Add($$"""
-                { "id": "{{id}}", "name": "{{name}}", "description": "{{description}}", "versions": [{ "version": "1.0.0", "apiVersion": "0.2", "download": "https://example.com/{{id}}.zip", "sha256": "{{Fixtures.Sha256(zip)}}" }] }
+                { "id": "{{id}}", "name": "{{name}}", "description": "{{description}}", "versions": [{ "version": "{{version}}", "apiVersion": "0.2", "download": "https://example.com/{{id}}.zip", "sha256": "{{Fixtures.Sha256(zip)}}" }] }
                 """);
             handler.Add(ModIndexFeed.Default, Encoding.UTF8.GetBytes($$"""{ "mods": [{{string.Join(",", listed)}}] }"""));
         }

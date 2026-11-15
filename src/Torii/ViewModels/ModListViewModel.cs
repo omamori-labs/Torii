@@ -17,6 +17,7 @@ namespace Torii.ViewModels
 
         private readonly string? orderFile;
 
+        private IReadOnlyDictionary<string, string> updates = new Dictionary<string, string>();
         private string search = string.Empty;
         private ModFilter filter;
         private bool customOrder;
@@ -31,6 +32,8 @@ namespace Torii.ViewModels
 
             Refresh();
         }
+
+        public Func<string, Task>? RequestUpdate { get; set; }
 
         public ObservableCollection<ModItemViewModel> Mods { get; } = [];
 
@@ -93,6 +96,7 @@ namespace Torii.ViewModels
                 foreach ((InstalledMod mod, ModItemViewModel row) in mods.Zip(Mods))
                     row.Mod = mod;
 
+                applyUpdates();
                 applyFilter();
                 return;
             }
@@ -102,10 +106,25 @@ namespace Torii.ViewModels
                 Mods.Add(new ModItemViewModel(this, mod));
 
             OnPropertyChanged(nameof(HasMods));
+            applyUpdates();
             applyFilter();
 
             if (customOrder && orderFile != null && ModOrder.Load(orderFile) is { } saved && !saved.SequenceEqual(Mods.Select(row => Path.GetFileName(row.Mod.Directory))))
                 saveOrder();
+        }
+
+        public void SetUpdates(IReadOnlyDictionary<string, string> available)
+        {
+            updates = available;
+            applyUpdates();
+        }
+
+        internal Task Update(ModItemViewModel row) => row.Mod.Manifest is { } manifest && RequestUpdate != null ? RequestUpdate(manifest.Id) : Task.CompletedTask;
+
+        private void applyUpdates()
+        {
+            foreach (ModItemViewModel row in Mods)
+                row.UpdateVersion = row.Mod.Manifest != null && updates.TryGetValue(row.Mod.Manifest.Id, out string? version) ? version : string.Empty;
         }
 
         private void saveOrder()

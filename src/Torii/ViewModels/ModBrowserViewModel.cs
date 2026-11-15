@@ -43,6 +43,11 @@ namespace Torii.ViewModels
             this.setProgress = setProgress;
         }
 
+        public event EventHandler? Refreshed;
+
+        public IReadOnlyDictionary<string, string> AvailableUpdates =>
+            Mods.Where(row => row.State == BrowsedModState.Update).ToDictionary(row => row.Mod.Id, row => row.Version);
+
         public ObservableCollection<BrowsedModViewModel> Mods { get; } = [];
 
         public ObservableCollection<BrowsedModViewModel> Visible { get; } = [];
@@ -115,6 +120,9 @@ namespace Torii.ViewModels
             foreach (BrowsedModViewModel row in Mods)
                 row.CanInstallChanged();
         }
+
+        public Task UpdateAsync(string id) =>
+            Mods.FirstOrDefault(row => row.Mod.Id == id && row.State == BrowsedModState.Update) is { } row ? InstallAsync(row) : Task.CompletedTask;
 
         internal async Task InstallAsync(BrowsedModViewModel row)
         {
@@ -189,6 +197,7 @@ namespace Torii.ViewModels
             }
 
             applyFilter();
+            Refreshed?.Invoke(this, EventArgs.Empty);
         }
 
         private void applyFilter()

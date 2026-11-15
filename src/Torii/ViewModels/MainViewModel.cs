@@ -119,7 +119,10 @@ namespace Torii.ViewModels
             Remember?.Invoke(newValue?.Instance.Directory);
 
             if (newValue != null)
+            {
                 _ = newValue.EnsureReleasesAsync();
+                _ = newValue.EnsureModIndexAsync();
+            }
         }
 
         private static bool sameFolder(LazerInstance a, LazerInstance b) =>

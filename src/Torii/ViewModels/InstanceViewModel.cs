@@ -56,6 +56,9 @@ namespace Torii.ViewModels
                     if (IsBusy)
                         Progress = fraction;
                 });
+
+                Browser.Refreshed += (_, _) => ModList.SetUpdates(Browser.AvailableUpdates);
+                ModList.RequestUpdate = Browser.UpdateAsync;
             }
 
             ModList.PropertyChanged += (_, e) =>
@@ -211,6 +214,8 @@ namespace Torii.ViewModels
 
             ModList.AddFromZip(zip);
         }
+
+        public Task EnsureModIndexAsync() => Browser != null && IsSetUp ? Browser.EnsureLoadedAsync() : Task.CompletedTask;
 
         [RelayCommand]
         public async Task BrowseAsync()

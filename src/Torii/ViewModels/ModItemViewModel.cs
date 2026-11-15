@@ -13,7 +13,19 @@ namespace Torii.ViewModels
         {
             this.owner = owner;
             Mod = mod;
+            UpdateVersion = string.Empty;
         }
+
+        [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(HasUpdate), nameof(UpdateLabel))]
+        public partial string UpdateVersion { get; set; }
+
+        public bool HasUpdate => UpdateVersion.Length > 0;
+
+        public string UpdateLabel => $"Update to {UpdateVersion}";
+
+        [RelayCommand]
+        public Task UpdateAsync() => owner.Update(this);
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(Label), nameof(Version), nameof(Byline), nameof(Description), nameof(Problem), nameof(Patches), nameof(CanToggle), nameof(CanRetry), nameof(IsOn))]
