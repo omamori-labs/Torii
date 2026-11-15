@@ -42,6 +42,7 @@
                 <Button Content="{Binding InstallLabel}" Command="{Binding InstallCommand}" MinWidth="90" HorizontalContentAlignment="Center" IsVisible="{Binding ReleasesReady}" Classes.accent="{Binding !IsSetUp}" />
                 <Button Content="Play" Command="{Binding PlayCommand}" IsVisible="{Binding IsSetUp}" Classes="accent" />
                 <Button Content="Add mod" Command="{Binding AddModCommand}" IsVisible="{Binding IsSetUp}" />
+                <Button Content="{Binding BrowseLabel}" Command="{Binding BrowseCommand}" IsVisible="{Binding CanBrowse}" />
                 <Button Content="Import from osu!" Command="{Binding ImportCommand}" IsVisible="{Binding ImportAvailable}" />
             </WrapPanel>
 
@@ -51,84 +52,151 @@
                        TextWrapping="Wrap" />
         </StackPanel>
 
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,0,0,8" IsVisible="{Binding ModList.HasMods}">
-            <TextBox Text="{Binding ModList.Search}" PlaceholderText="Search mods">
-                <TextBox.InnerLeftContent>
-                    <icons:Icon Value="mdi-magnify" Opacity="0.6" Margin="10,0,0,0" />
-                </TextBox.InnerLeftContent>
-            </TextBox>
-            <ComboBox Grid.Column="1" ItemsSource="{Binding ModList.Filters}" SelectedItem="{Binding ModList.Filter}" MinWidth="110" />
-        </Grid>
-
         <Panel>
-            <Panel x:Name="EmptyDropZone" IsVisible="{Binding NoMods}">
-                <Rectangle Stroke="#40FFFFFF" StrokeThickness="2" StrokeDashArray="4,4" RadiusX="8" RadiusY="8" />
-                <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <icons:Icon Value="mdi-tray-arrow-down" FontSize="72" Opacity="0.6" HorizontalAlignment="Center" />
-                    <TextBlock Text="Drop a mod here" FontSize="22" HorizontalAlignment="Center" />
-                </StackPanel>
-            </Panel>
-            <TextBlock Text="No mods match." IsVisible="{Binding ModList.NoMatches}" Opacity="0.6" />
+            <DockPanel IsVisible="{Binding !IsBrowsing}">
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" ColumnSpacing="8" Margin="0,0,0,8" IsVisible="{Binding ModList.HasMods}">
+                    <TextBox Text="{Binding ModList.Search}" PlaceholderText="Search mods">
+                        <TextBox.InnerLeftContent>
+                            <icons:Icon Value="mdi-magnify" Opacity="0.6" Margin="10,0,0,0" />
+                        </TextBox.InnerLeftContent>
+                    </TextBox>
+                    <ComboBox Grid.Column="1" ItemsSource="{Binding ModList.Filters}" SelectedItem="{Binding ModList.Filter}" MinWidth="110" />
+                </Grid>
 
-            <ScrollViewer x:Name="ModScroller" IsVisible="{Binding ModList.HasMods}">
-                <ItemsControl x:Name="ModItems" ItemsSource="{Binding ModList.Visible}" IsEnabled="{Binding CanEdit}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ModItemViewModel">
-                            <Border Background="#14FFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
-                                <Border.ContextFlyout>
-                                    <MenuFlyout OverlayDismissEventPassThrough="True">
-                                        <MenuItem Header="Remove" Command="{Binding RemoveCommand}">
-                                            <MenuItem.Icon>
-                                                <icons:Icon Value="mdi-delete" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                        <MenuItem Header="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}">
-                                            <MenuItem.Icon>
-                                                <icons:Icon Value="mdi-refresh" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                        <MenuItem Header="Open mod folder" Command="{Binding OpenFolderCommand}">
-                                            <MenuItem.Icon>
-                                                <icons:Icon Value="mdi-folder-open" />
-                                            </MenuItem.Icon>
-                                        </MenuItem>
-                                    </MenuFlyout>
-                                </Border.ContextFlyout>
-                                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
-                                    <StackPanel Spacing="2">
-                                        <StackPanel Orientation="Horizontal" Spacing="6">
-                                            <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
-                                            <TextBlock Text="{Binding Version}" Opacity="0.6" />
-                                            <TextBlock Text="{Binding Byline}"
-                                                       IsVisible="{Binding Byline, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                       Opacity="0.6" />
-                                            <TextBlock Text="Patches osu!" IsVisible="{Binding Patches}" Foreground="Orange" />
-                                        </StackPanel>
-                                        <TextBlock Text="{Binding Description}"
-                                                   IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                   TextWrapping="Wrap" />
-                                        <Grid ColumnDefinitions="Auto,*"
-                                              ColumnSpacing="6"
-                                              IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                            <icons:Icon Value="mdi-alert" Foreground="Orange" VerticalAlignment="Top" Margin="0,2,0,0" />
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding Problem}"
-                                                       Foreground="Orange"
-                                                       TextWrapping="Wrap" />
+                <Panel>
+                    <Panel x:Name="EmptyDropZone" IsVisible="{Binding NoMods}">
+                        <Rectangle Stroke="#40FFFFFF" StrokeThickness="2" StrokeDashArray="4,4" RadiusX="8" RadiusY="8" />
+                        <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                            <icons:Icon Value="mdi-tray-arrow-down" FontSize="72" Opacity="0.6" HorizontalAlignment="Center" />
+                            <TextBlock Text="Drop a mod here" FontSize="22" HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Panel>
+                    <TextBlock Text="No mods match." IsVisible="{Binding ModList.NoMatches}" Opacity="0.6" />
+
+                    <ScrollViewer x:Name="ModScroller" IsVisible="{Binding ModList.HasMods}">
+                        <ItemsControl x:Name="ModItems" ItemsSource="{Binding ModList.Visible}" IsEnabled="{Binding CanEdit}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ModItemViewModel">
+                                    <Border Background="#14FFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
+                                        <Border.ContextFlyout>
+                                            <MenuFlyout OverlayDismissEventPassThrough="True">
+                                                <MenuItem Header="Remove" Command="{Binding RemoveCommand}">
+                                                    <MenuItem.Icon>
+                                                        <icons:Icon Value="mdi-delete" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Try again" Command="{Binding RetryCommand}" IsVisible="{Binding CanRetry}">
+                                                    <MenuItem.Icon>
+                                                        <icons:Icon Value="mdi-refresh" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                                <MenuItem Header="Open mod folder" Command="{Binding OpenFolderCommand}">
+                                                    <MenuItem.Icon>
+                                                        <icons:Icon Value="mdi-folder-open" />
+                                                    </MenuItem.Icon>
+                                                </MenuItem>
+                                            </MenuFlyout>
+                                        </Border.ContextFlyout>
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <StackPanel Spacing="2">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding Version}" Opacity="0.6" />
+                                                    <TextBlock Text="{Binding Byline}"
+                                                               IsVisible="{Binding Byline, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                               Opacity="0.6" />
+                                                    <TextBlock Text="Patches osu!" IsVisible="{Binding Patches}" Foreground="Orange" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Description}"
+                                                           IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                           TextWrapping="Wrap" />
+                                                <Grid ColumnDefinitions="Auto,*"
+                                                      ColumnSpacing="6"
+                                                      IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                    <icons:Icon Value="mdi-alert" Foreground="Orange" VerticalAlignment="Top" Margin="0,2,0,0" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding Problem}"
+                                                               Foreground="Orange"
+                                                               TextWrapping="Wrap" />
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <ToggleSwitch Grid.Column="1"
+                                                          IsChecked="{Binding IsOn}"
+                                                          IsEnabled="{Binding CanToggle}"
+                                                          OnContent="" OffContent=""
+                                                          VerticalAlignment="Center" />
                                         </Grid>
-                                    </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Panel>
+            </DockPanel>
 
-                                    <ToggleSwitch Grid.Column="1"
-                                                  IsChecked="{Binding IsOn}"
-                                                  IsEnabled="{Binding CanToggle}"
-                                                  OnContent="" OffContent=""
-                                                  VerticalAlignment="Center" />
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+            <DockPanel x:Name="BrowserArea" IsVisible="{Binding IsBrowsing}">
+                <TextBox DockPanel.Dock="Top" Text="{Binding Browser.Search}" PlaceholderText="Search the mod list" Margin="0,0,0,8">
+                    <TextBox.InnerLeftContent>
+                        <icons:Icon Value="mdi-magnify" Opacity="0.6" Margin="10,0,0,0" />
+                    </TextBox.InnerLeftContent>
+                </TextBox>
+
+                <Panel>
+                    <TextBlock Text="Loading mods..." IsVisible="{Binding Browser.IsLoading}" Opacity="0.6" />
+                    <StackPanel IsVisible="{Binding Browser.Failure, Converter={x:Static ObjectConverters.IsNotNull}}" Spacing="8" HorizontalAlignment="Left">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="6">
+                            <icons:Icon Value="mdi-alert" Foreground="Orange" VerticalAlignment="Top" Margin="0,2,0,0" />
+                            <TextBlock Grid.Column="1" Text="{Binding Browser.Failure}" Foreground="Orange" TextWrapping="Wrap" />
+                        </Grid>
+                        <Button Content="Try again" Command="{Binding Browser.RetryCommand}" />
+                    </StackPanel>
+                    <TextBlock Text="No mods match." IsVisible="{Binding Browser.NoMatches}" Opacity="0.6" />
+
+                    <ScrollViewer x:Name="BrowserScroller">
+                        <ItemsControl ItemsSource="{Binding Browser.Visible}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:BrowsedModViewModel">
+                                    <Border Background="#14FFFFFF" CornerRadius="6" Padding="12,10" Margin="0,0,0,8">
+                                        <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+                                            <StackPanel Spacing="2">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                                    <TextBlock Text="{Binding Version}" Opacity="0.6" />
+                                                    <TextBlock Text="{Binding Byline}"
+                                                               IsVisible="{Binding Byline, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                               Opacity="0.6" />
+                                                </StackPanel>
+                                                <TextBlock Text="{Binding Description}"
+                                                           IsVisible="{Binding Description, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                           TextWrapping="Wrap" />
+                                                <Grid ColumnDefinitions="Auto,*"
+                                                      ColumnSpacing="6"
+                                                      IsVisible="{Binding Problem, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                                    <icons:Icon Value="mdi-alert" Foreground="Orange" VerticalAlignment="Top" Margin="0,2,0,0" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding Problem}"
+                                                               Foreground="Orange"
+                                                               TextWrapping="Wrap" />
+                                                </Grid>
+                                            </StackPanel>
+
+                                            <Button Grid.Column="1"
+                                                    Content="{Binding ActionLabel}"
+                                                    Command="{Binding InstallCommand}"
+                                                    IsVisible="{Binding ShowsAction}"
+                                                    MinWidth="80"
+                                                    HorizontalContentAlignment="Center"
+                                                    VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="Installed" IsVisible="{Binding IsInstalled}" Opacity="0.6" VerticalAlignment="Center" />
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Panel>
+            </DockPanel>
         </Panel>
     </DockPanel>
 </UserControl>

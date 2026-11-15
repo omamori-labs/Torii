@@ -7,11 +7,12 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Torii.Core.Mods;
 
 namespace Torii.ViewModels
 {
-    public sealed class ModBrowserViewModel : ObservableObject
+    public sealed partial class ModBrowserViewModel : ObservableObject
     {
         private readonly ModIndexFeed feed;
         private readonly IndexedModInstaller installer;
@@ -71,6 +72,9 @@ namespace Torii.ViewModels
             get => isLoading;
             private set => SetProperty(ref isLoading, value);
         }
+
+        [RelayCommand]
+        public Task RetryAsync() => EnsureLoadedAsync();
 
         public async Task EnsureLoadedAsync()
         {

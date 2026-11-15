@@ -120,7 +120,10 @@ namespace Torii.ViewModels
         public partial bool IsSetUp { get; private set; }
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(BrowseLabel))]
         public partial bool IsBrowsing { get; private set; }
+
+        public string BrowseLabel => IsBrowsing ? "Installed mods" : "Browse mods";
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]

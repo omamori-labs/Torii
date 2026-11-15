@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Text;
@@ -6,6 +7,7 @@ using Torii.Core;
 using Torii.Core.Instances;
 using Torii.Core.Lazer;
 using Torii.Core.Library;
+using Torii.Core.Mods;
 using Torii.Core.Releases;
 using Torii.ViewModels;
 
@@ -16,6 +18,7 @@ namespace Torii.Tests
         private const string lazer = "2026.1005.0-lazer";
 
         private readonly RouteHandler handler = new RouteHandler();
+        private readonly List<string> listed = [];
         private readonly HttpClient http;
         private readonly SharedLibrary library;
 
@@ -56,6 +59,21 @@ namespace Torii.Tests
                 """);
         }
 
+        public void ServeMod(string id, string name, string description = "")
+        {
+            byte[] zip = Fixtures.Zip(
+                ($"{id}/Mod.dll", []),
+                ($"{id}/mod.json", Encoding.UTF8.GetBytes($$"""
+                    { "id": "{{id}}", "name": "{{name}}", "version": "1.0.0", "entry": "Mod.dll", "apiVersion": "0.2", "capabilities": ["Cosmetic"] }
+                    """)));
+
+            handler.Add(new Uri($"https://example.com/{id}.zip"), zip);
+            listed.Add($$"""
+                { "id": "{{id}}", "name": "{{name}}", "description": "{{description}}", "versions": [{ "version": "1.0.0", "apiVersion": "0.2", "download": "https://example.com/{{id}}.zip", "sha256": "{{Fixtures.Sha256(zip)}}" }] }
+                """);
+            handler.Add(ModIndexFeed.Default, Encoding.UTF8.GetBytes($$"""{ "mods": [{{string.Join(",", listed)}}] }"""));
+        }
+
         public string ModZip(string id, string name)
         {
             string path = Path.Combine(Root, $"{id}.zip");
@@ -83,6 +101,8 @@ namespace Torii.Tests
             library,
             new LibrarySeed(() => false, () => null, () => null),
             () => false,
-            new GameLauncher(_ => { }));
+            new GameLauncher(_ => { }),
+            new ModIndexFeed(http),
+            new IndexedModInstaller(http, Root));
     }
 }

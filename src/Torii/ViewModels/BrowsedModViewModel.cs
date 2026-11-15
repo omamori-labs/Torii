@@ -34,12 +34,14 @@ namespace Torii.ViewModels
 
         public bool ShowsAction => State is BrowsedModState.Available or BrowsedModState.Update;
 
+        public bool IsInstalled => State == BrowsedModState.Installed;
+
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(Version))]
         public partial IndexedModVersion Target { get; private set; }
 
         [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(ActionLabel), nameof(Problem), nameof(CanInstall), nameof(ShowsAction))]
+        [NotifyPropertyChangedFor(nameof(ActionLabel), nameof(Problem), nameof(CanInstall), nameof(ShowsAction), nameof(IsInstalled))]
         [NotifyCanExecuteChangedFor(nameof(InstallCommand))]
         public partial BrowsedModState State { get; private set; }
 
