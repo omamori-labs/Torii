@@ -9,6 +9,8 @@ namespace Torii.Core.Mods
     {
         public const string FILENAME = "mod.json";
 
+        public static bool IsId(string id) => idPattern().IsMatch(id);
+
         public static ModInfo Read(string path)
         {
             try
