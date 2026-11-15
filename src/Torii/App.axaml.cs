@@ -8,6 +8,7 @@ using Torii.Core;
 using Torii.Core.Instances;
 using Torii.Core.Lazer;
 using Torii.Core.Library;
+using Torii.Core.Mods;
 using Torii.Core.Releases;
 using Torii.Core.Settings;
 using Torii.Updates;
@@ -39,7 +40,10 @@ namespace Torii
                 var settings = new SettingsStore(SettingsStore.DefaultFile());
                 AppSettings current = settings.Load();
 
-                var shell = new MainViewModel(store, instance => new InstanceViewModel(instance, feed, setup, library, seed), given, current.SelectedInstance, current.InstanceOrder);
+                var modIndex = new ModIndexFeed(http);
+                var modInstaller = new IndexedModInstaller(http);
+
+                var shell = new MainViewModel(store, instance => new InstanceViewModel(instance, feed, setup, library, seed, modIndex: modIndex, modInstaller: modInstaller), given, current.SelectedInstance, current.InstanceOrder);
 
                 var updateLog = new UpdateLog(UpdateLog.DefaultFile());
 

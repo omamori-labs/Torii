@@ -32,6 +32,8 @@ namespace Torii.Core.Mods
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(install.DataDirectory));
         }
 
+        public string? ProvidedApi() => OmamoriApi.Read(install.ApiAssembly);
+
         public IReadOnlyList<InstalledMod> List()
         {
             var mods = new List<InstalledMod>();

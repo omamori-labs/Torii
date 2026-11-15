@@ -21,6 +21,8 @@ namespace Torii.Core.Mods
             return plan;
         }
 
+        public static IndexedModVersion? Newest(IndexedMod mod, string? api) => mod.Versions.FirstOrDefault(v => compatible(v, api));
+
         public static IReadOnlyList<ModUpdate> Updates(IReadOnlyList<IndexedMod> index, IReadOnlyList<InstalledMod> installed, string? api)
         {
             var updates = new List<ModUpdate>();

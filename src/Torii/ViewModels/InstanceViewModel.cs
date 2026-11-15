@@ -31,7 +31,7 @@ namespace Torii.ViewModels
         private string? installedVersion;
         private bool releasesLoaded;
 
-        public InstanceViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, SharedLibrary library, LibrarySeed seed, Func<bool>? osuRunning = null, GameLauncher? launcher = null)
+        public InstanceViewModel(LazerInstance instance, ReleaseFeed feed, InstanceSetup setup, SharedLibrary library, LibrarySeed seed, Func<bool>? osuRunning = null, GameLauncher? launcher = null, ModIndexFeed? modIndex = null, IndexedModInstaller? modInstaller = null)
         {
             this.instance = instance;
             this.feed = feed;
@@ -41,7 +41,23 @@ namespace Torii.ViewModels
             this.osuRunning = osuRunning ?? (() => OsuProcess.IsRunningIn(instance.Directory));
             this.launcher = launcher ?? new GameLauncher();
 
-            ModList = new ModListViewModel(new ModLibrary(instance.Omamori, this.osuRunning), status => Status = status, message => _ = problem(message), path => OpenFolder?.Invoke(path) ?? Task.CompletedTask, instance.ModOrderFile);
+            var modLibrary = new ModLibrary(instance.Omamori, this.osuRunning);
+            ModList = new ModListViewModel(modLibrary, status => Status = status, message => _ = problem(message), path => OpenFolder?.Invoke(path) ?? Task.CompletedTask, instance.ModOrderFile);
+
+            if (modIndex != null && modInstaller != null)
+            {
+                Browser = new ModBrowserViewModel(modIndex, modInstaller, modLibrary, ModList.Refresh, status => Status = status, problem, canAddMod, busy =>
+                {
+                    IsBusy = busy;
+                    IsIndeterminate = false;
+                    Progress = 0;
+                }, fraction =>
+                {
+                    if (IsBusy)
+                        Progress = fraction;
+                });
+            }
+
             ModList.PropertyChanged += (_, e) =>
             {
                 if (e.PropertyName == nameof(ModListViewModel.HasMods))
@@ -56,6 +72,10 @@ namespace Torii.ViewModels
         }
 
         public ModListViewModel ModList { get; }
+
+        public ModBrowserViewModel? Browser { get; }
+
+        public bool CanBrowse => Browser != null && IsSetUp;
 
         public LazerInstance Instance => instance;
 
@@ -95,9 +115,12 @@ namespace Torii.ViewModels
         public partial OmamoriRelease? SelectedRelease { get; set; }
 
         [ObservableProperty]
-        [NotifyPropertyChangedFor(nameof(NoMods))]
+        [NotifyPropertyChangedFor(nameof(NoMods), nameof(CanBrowse))]
         [NotifyCanExecuteChangedFor(nameof(PlayCommand), nameof(AddModCommand), nameof(DuplicateCommand))]
         public partial bool IsSetUp { get; private set; }
+
+        [ObservableProperty]
+        public partial bool IsBrowsing { get; private set; }
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanEdit))]
@@ -184,6 +207,15 @@ namespace Torii.ViewModels
                 return;
 
             ModList.AddFromZip(zip);
+        }
+
+        [RelayCommand]
+        public async Task BrowseAsync()
+        {
+            IsBrowsing = !IsBrowsing;
+
+            if (IsBrowsing && Browser != null)
+                await Browser.EnsureLoadedAsync();
         }
 
         public bool AcceptsMods() => canAddMod();
@@ -369,6 +401,10 @@ namespace Torii.ViewModels
 
             await RefreshOsuRunningAsync();
         }
+
+        partial void OnIsBusyChanged(bool value) => Browser?.CanInstallChanged();
+
+        partial void OnOsuRunningChanged(bool value) => Browser?.CanInstallChanged();
 
         private async Task problem(string message)
         {
