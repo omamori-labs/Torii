@@ -107,7 +107,7 @@ namespace Torii.Core.Mods
                 SetEnabled(mod.Manifest.Id, true);
         }
 
-        public InstalledMod InstallFromZip(string zipPath)
+        public InstalledMod InstallFromZip(string zipPath, string? expectedId = null, string? expectedVersion = null)
         {
             requireOsuClosed();
 
@@ -119,6 +119,12 @@ namespace Torii.Core.Mods
                 extractMod(zipPath, staging);
 
                 ModInfo manifest = ModManifestReader.Read(Path.Combine(staging, ModManifestReader.FILENAME));
+
+                if (expectedId != null && manifest.Id != expectedId)
+                    throw new InvalidDataException($"This zip is {manifest.Id}, not {expectedId}.");
+
+                if (expectedVersion != null && manifest.Version != expectedVersion)
+                    throw new InvalidDataException($"This zip is version {manifest.Version}, not {expectedVersion}.");
 
                 if (!File.Exists(Path.Combine(staging, manifest.Entry)))
                     throw new InvalidDataException($"This isn't an Omamori mod, {manifest.Entry} is missing from the zip.");
