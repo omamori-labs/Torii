@@ -86,20 +86,20 @@
       },
       "Optris.Icons.Avalonia": {
         "type": "Direct",
-        "requested": "[12.0.7, )",
-        "resolved": "12.0.7",
-        "contentHash": "PVNlV/cn8EcOtFsFQhaa0oWcEJTPXKHW/78xpVVPftQTrmHYm5a6m4MBQETW7mmsBTSasyh3/bAxkNAb79eHpA==",
+        "requested": "[12.1.0, )",
+        "resolved": "12.1.0",
+        "contentHash": "//UqPLU0nbHUMQd0NY4WxHn7NBEWeczIqtyxrNW5vLZsJjL4q4QTNjMjlGU0zu8aTPccfE5VB8vsCnzVCIKwYA==",
         "dependencies": {
-          "Avalonia": "12.0.1"
+          "Avalonia": "12.1.6"
         }
       },
       "Optris.Icons.Avalonia.MaterialDesign": {
         "type": "Direct",
-        "requested": "[12.0.7, )",
-        "resolved": "12.0.7",
-        "contentHash": "PDQrWld62RT5BQQE6gJ9+OiOCEaB8IUpPVv6Yg0Vr6Jhuv3skCdW8JCj0i5sfGp5QYO03asLbfcFgGwSiC6pFw==",
+        "requested": "[12.1.0, )",
+        "resolved": "12.1.0",
+        "contentHash": "Df3nQ1YK/gF9LnyCRGF/EZ84K+qW2QiHNCrNCVB4OX8AtQaHwQ1xNoDgEMKn9mf7OJjs6DRAhSb9YhGvEJOgDA==",
         "dependencies": {
-          "Optris.Icons.Avalonia": "12.0.7"
+          "Optris.Icons.Avalonia": "12.1.0"
         }
       },
       "Velopack": {
